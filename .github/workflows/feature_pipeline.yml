@@ -3,12 +3,16 @@ name: Run Feature Pipeline
 on:
   schedule:
     - cron: "0 0 * * *"
-
   workflow_dispatch:
 
 jobs:
   run-feature-pipeline:
     runs-on: ubuntu-latest
+
+    env:
+      HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
+      TIINGO_API_KEY: ${{ secrets.TIINGO_API_KEY }}
+      ALPHA_VANTAGE_KEY: ${{ secrets.ALPHA_VANTAGE_KEY }}
 
     steps:
       - name: Checkout repository
