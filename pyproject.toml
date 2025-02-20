@@ -40,3 +40,6 @@ priority = "supplemental"
 
 [tool.poetry.dependencies]
 torch = {source = "torch"}
+
+[tool.poetry]
+package-mode = false
