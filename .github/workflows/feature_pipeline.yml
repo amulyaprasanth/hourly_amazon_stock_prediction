@@ -4,8 +4,9 @@ on:
   schedule:
     - cron: "0 0 * * *"
 
-jobs:
   workflow_dispatch:
+
+jobs:
   run-feature-pipeline:
     runs-on: ubuntu-latest
 
