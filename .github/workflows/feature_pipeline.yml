@@ -5,6 +5,7 @@ on:
     - cron: "0 0 * * *"
 
 jobs:
+  workflow_dispatch:
   run-feature-pipeline:
     runs-on: ubuntu-latest
 
