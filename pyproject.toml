@@ -22,17 +22,14 @@ dependencies = [
     "torch (==2.6.0+cu126)",
     "mplfinance (>=0.12.10b0,<0.13.0)",
     "statsmodels (>=0.14.4,<0.15.0)",
-    "torchinfo (>=1.8.0,<2.0.0)"
+    "torchinfo (>=1.8.0,<2.0.0)",
+    "yfinance (>=0.2.54,<0.3.0)"
 ]
 
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.group.dev.dependencies]
-jupyter = "^1.1.1"
-pytest = "^8.3.4"
 
 
 [[tool.poetry.source]]
