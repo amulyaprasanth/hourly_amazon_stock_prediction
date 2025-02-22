@@ -1,4 +1,4 @@
-name: Run Feature Pipeline
+name: Run Feature And Batch Inference Pipelines
 
 on:
   schedule:
@@ -11,8 +11,6 @@ jobs:
 
     env:
       HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
-      TIINGO_API_KEY: ${{ secrets.TIINGO_API_KEY }}
-      ALPHA_VANTAGE_KEY: ${{ secrets.ALPHA_VANTAGE_KEY }}
 
     steps:
       - name: Checkout repository
@@ -33,4 +31,8 @@ jobs:
 
       - name: Run feature pipeline notebook
         run: |
-          poetry run jupyter nbconvert --to notebook --execute notebooks/feature_pipeline.ipynb --output executed_feature_pipeline.ipynb
+          poetry run jupyter nbconvert --to notebook --execute notebooks/feature_pipeline.ipynb
+
+      - name: Run Inference pipeline notebook
+        run: |
+          poetry run jupyter nbconvert --to notebook --execute notebooks/batch_inference_pipeline.ipynb
