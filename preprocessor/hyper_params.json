@@ -1,0 +1,1 @@
+{"input_size": 4, "window_size": 24, "forecast_steps": 6, "batch_size": 32, "hidden_size": 128, "num_layers": 4, "num_epochs": 100, "learning_rate": 0.001}
