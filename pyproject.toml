@@ -19,11 +19,11 @@ dependencies = [
     "python-dotenv (>=1.0.1,<2.0.0)",
     "dataframe-image (>=0.2.7,<0.3.0)",
     "comet-ml (>=3.49.1,<4.0.0)",
-    "torch (==2.6.0+cu126)",
     "mplfinance (>=0.12.10b0,<0.13.0)",
     "statsmodels (>=0.14.4,<0.15.0)",
     "torchinfo (>=1.8.0,<2.0.0)",
-    "yfinance (>=0.2.54,<0.3.0)"
+    "yfinance (>=0.2.54,<0.3.0)",
+    "torch (>=2.6.0,<3.0.0)"
 ]
 
 
@@ -38,8 +38,6 @@ url = "https://download.pytorch.org/whl/cu126"
 priority = "supplemental"
 
 
-[tool.poetry.dependencies]
-torch = {source = "torch"}
 
 [tool.poetry]
 package-mode = false
