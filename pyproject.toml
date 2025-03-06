@@ -19,7 +19,6 @@ dependencies = [
     "python-dotenv (>=1.0.1,<2.0.0)",
     "dataframe-image (>=0.2.7,<0.3.0)",
     "comet-ml (>=3.49.1,<4.0.0)",
-    "mplfinance (>=0.12.10b0,<0.13.0)",
     "statsmodels (>=0.14.4,<0.15.0)",
     "torchinfo (>=1.8.0,<2.0.0)",
     "yfinance (>=0.2.54,<0.3.0)",
