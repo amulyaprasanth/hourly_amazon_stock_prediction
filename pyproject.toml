@@ -41,3 +41,7 @@ priority = "supplemental"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
 
+[tool.poetry]
+packages = [
+    {include = "amazonstockprediction"}
+]
