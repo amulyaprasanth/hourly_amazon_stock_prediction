@@ -2,8 +2,8 @@ import os
 import requests
 import hopsworks
 import pandas as pd
-from amazonStockPrediction.src.logger import setup_logger
-from amazonStockPrediction.src.utils import fetch_historical_data, calculate_indicators
+from amazonstockprediction.src.logger import setup_logger
+from amazonstockprediction.src.utils import fetch_historical_data, calculate_indicators
 from dotenv import load_dotenv
 
 # Load the .env file
