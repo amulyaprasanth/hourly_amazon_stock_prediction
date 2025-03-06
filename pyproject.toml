@@ -1,5 +1,5 @@
 [project]
-name = "amazonStockPrediction"
+name = "amazonstockprediction"
 version = "0.1.0"
 description = ""
 authors = [
@@ -37,8 +37,6 @@ build-backend = "poetry.core.masonry.api"
 name = "torch"
 url = "https://download.pytorch.org/whl/cu126"
 priority = "supplemental"
-
-
 
 
 [tool.poetry.group.dev.dependencies]
