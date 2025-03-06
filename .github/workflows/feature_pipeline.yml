@@ -1,32 +1,31 @@
 name: Run Feature Pipeline Daily
 
-
 on:
-    schedule: 
-        - cron : "0 0 * * *"
-    workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
 
 jobs:
-    run-feature-pipeline:
-        runs-on: ubuntu-latest
+  run-feature-pipeline:
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-            - name: Set up Python environment
-              uses: actions/setup-python@v4
-              with:
-                  python-version: '3.11.9'
-                  
-            - name: Install Poetry
-              run:  curl -sSL https://install.python-poetry.org | python3 -
+      - name: Set up Python environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11.9"
 
-            - name: Install dependencies
-              run: poetry install
+      - name: Install Poetry
+        run: curl -sSL https://install.python-poetry.org | python3 -
 
-            - name: Run Feature Pipeline
-              env: 
-                hopsworks_api_key : ${{ secrets.HOPSWORKS_API_KEY }}
-              run: |
-                poetry run python amazonstockprediction/feature_pipeline.py
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run Feature Pipeline
+        env:
+          HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
+        run: |
+          poetry run python amazonstockprediction/feature_pipeline.py
