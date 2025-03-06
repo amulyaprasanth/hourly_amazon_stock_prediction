@@ -18,6 +18,7 @@ dependencies = [
     "python-dotenv (>=1.0.1,<2.0.0)",
     "dataframe-image (>=0.2.7,<0.3.0)",
     "yfinance (>=0.2.54,<0.3.0)",
+    "xgboost (>=2.1.4,<3.0.0)",
 ]
 
 
@@ -29,6 +30,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
+ipykernel = "^6.29.5"
 
 [tool.poetry]
 packages = [

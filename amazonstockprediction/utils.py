@@ -1,7 +1,9 @@
 import yfinance as yf
+import numpy as np
 import pandas as pd
 from ta.momentum import RSIIndicator
 from ta.trend import CCIIndicator
+
 
 def fetch_historical_data(ticker: str = "AMZN", period: str = "2y", interval: str = "1h") -> pd.DataFrame: 
     """
@@ -37,7 +39,6 @@ def fetch_historical_data(ticker: str = "AMZN", period: str = "2y", interval: st
     return data
 
 
-
 def calculate_indicators(data: pd.DataFrame) -> pd.DataFrame:
     """
     Calculates RSI and CCI indicators for the given stock data.
@@ -54,3 +55,15 @@ def calculate_indicators(data: pd.DataFrame) -> pd.DataFrame:
     data['cci'] = cci
 
     return data.dropna()
+
+
+def generate_sequence(data: pd.DataFrame, window_size:int = 24, forecast_steps: int = 6):
+
+    X = []
+    y = []
+
+    for i in range(len(data) - window_size - forecast_steps):
+        X.append(data.iloc[i:i+window_size])
+        y.append(data.iloc[i+window_size:i+window_size+forecast_steps, 2])
+
+    return np.array(X), np.array(y)
