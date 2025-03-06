@@ -26,4 +26,7 @@ jobs:
               run: poetry install
 
             - name: Run Feature Pipeline
-              run: poetry run python amazonstockprediction/feature_pipeline.py
+              env: 
+                hopsworks_api_key : ${{ secrets.HOPSWORKS_API_KEY }}
+              run: |
+                poetry run python amazonstockprediction/feature_pipeline.py
