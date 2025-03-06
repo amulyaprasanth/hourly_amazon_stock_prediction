@@ -26,4 +26,4 @@ jobs:
               run: poetry install
 
             - name: Run Feature Pipeline
-              run: poetry run python amazonStockPrediction/src/feature_pipeline.py
+              run: poetry run python amazonStockPrediction/feature_pipeline.py
