@@ -1,8 +1,8 @@
 import os
 import hopsworks
-from amazonstockprediction.src.logger import setup_logger
+from amazonstockprediction.logger import setup_logger
 from dotenv import load_dotenv
-from amazonstockprediction.src.utils import fetch_historical_data, calculate_indicators
+from amazonstockprediction.utils import fetch_historical_data, calculate_indicators
 
 load_dotenv()
 
