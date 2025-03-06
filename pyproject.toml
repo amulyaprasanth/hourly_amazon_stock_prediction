@@ -1,5 +1,5 @@
 [project]
-name = "source"
+name = "amazonStockPrediction"
 version = "0.1.0"
 description = ""
 authors = [
@@ -40,5 +40,7 @@ priority = "supplemental"
 
 
 
-[tool.poetry]
-package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+

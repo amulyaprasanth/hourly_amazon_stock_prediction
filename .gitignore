@@ -170,4 +170,9 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 models/
+
+
+# custom directories added by the user
+logs/
 .vscode/
+assets/
