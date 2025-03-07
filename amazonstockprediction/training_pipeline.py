@@ -53,10 +53,11 @@ def get_time_series_data(
     """Split the data into train, val and test sets and generate sequences."""
     try:
 
-        # Drop the date time column
-        train = train.drop("datetime", axis=1)
-        val = val.drop("datetime", axis=1)
-        test = test.drop("datetime", axis=1)
+
+        # Sort the values by date and remove the datetime column
+        train = train.sort_values("datetime").drop("datetime", axis=1)
+        val = val.sort_values("datetime").drop("datetime", axis=1)
+        test = test.sort_values("datetime").drop("datetime", axis=1)
 
         X_train, y_train = generate_sequence(
             train, window_size=window_size, forecast_steps=forecast_steps
