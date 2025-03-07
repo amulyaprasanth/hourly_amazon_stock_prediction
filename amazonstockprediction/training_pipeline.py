@@ -43,7 +43,6 @@ def get_or_create_feature_view(
         logger.error(f"Error creating feature view: {e}")
         raise
 
-
 def get_time_series_data(
     train: pd.DataFrame,
     val: pd.DataFrame,
@@ -73,7 +72,6 @@ def get_time_series_data(
         logger.error(f"Error generating time series data: {e}")
         raise
 
-
 def train_and_evaluate_model(
     X_train: np.ndarray, y_train: np.ndarray, X_val: np.ndarray, y_val: np.ndarray
 ) -> Tuple[Any, float]:
@@ -95,7 +93,6 @@ def train_and_evaluate_model(
         logger.error(f"Error during model training and evaluation: {e}")
         raise
 
-
 def save_model(model: BaseEstimator, model_dir: str, model_path: str):
     try:
         if not os.path.exists(model_dir):
@@ -105,7 +102,6 @@ def save_model(model: BaseEstimator, model_dir: str, model_path: str):
     except Exception as e:
         logger.error(f"Error saving model: {e}")
         raise
-
 
 if __name__ == "__main__":
     try:
@@ -120,8 +116,6 @@ if __name__ == "__main__":
             test_start_dt,
             test_end_dt,
         ) = get_train_test_val_dates(start_date)
-
-        print(start_date)
 
         train, val, test, _, _, _ = amazon_fv.train_validation_test_split(
             train_start=train_start_dt,
@@ -148,7 +142,7 @@ if __name__ == "__main__":
             description="XGBoost model for predicting Amazon stock prices",
             input_example=X_train[0],
             feature_view=amazon_fv,
-            metrics=metrics,
+            metrics = metrics
         )
         model.save(model_dir)
     except Exception as e:
