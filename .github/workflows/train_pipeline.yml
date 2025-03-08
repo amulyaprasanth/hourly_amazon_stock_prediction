@@ -2,7 +2,7 @@ name: Run Train Pipeline
 
 on:
   schedule:
-    - cron: "0 0 * * 0" # Run every Sunday at midnight (UTC)
+    - cron: "30 0 * * 0" # Run every Sunday at 00:30 am after completion of feature and inference pipelines (UTC)
   workflow_dispatch:
 
 jobs:
