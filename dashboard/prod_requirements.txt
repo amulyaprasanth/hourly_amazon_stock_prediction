@@ -1,3 +1,0 @@
-hopsworks[python]
-streamlit
-plotly
