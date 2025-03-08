@@ -1,4 +1,4 @@
-name: Run Feature Pipeline Daily
+name: Run Feature and Inference Pipeline Daily
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-feature-pipeline:
+  run-feature-inference-pipeline:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,3 +29,4 @@ jobs:
           HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
         run: |
           poetry run python amazonstockprediction/feature_pipeline.py
+          poetry run python amazonstockprediction/batch_inference_pipeline.py
