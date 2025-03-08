@@ -3,7 +3,8 @@ import hsfs
 import numpy as np
 import pandas as pd
 import joblib
-from typing import Any, Tuple
+from typing import Tuple
+import xgboost
 from sklearn.model_selection import GridSearchCV
 from sklearn.base import BaseEstimator
 from hsfs.feature_store import FeatureStore
@@ -75,11 +76,10 @@ def get_time_series_data(
 
 def train_and_evaluate_model(
     X_train: np.ndarray, y_train: np.ndarray, X_val: np.ndarray, y_val: np.ndarray
-) -> Tuple[Any, float]:
+) -> Tuple[xgboost.sklearn.XGBRegressor, float]:
     try:
         X_train_reshaped = X_train.reshape(X_train.shape[0], -1)
         X_val_reshaped = X_val.reshape(X_val.shape[0], -1)
-
         model = XGBRegressor(objective="reg:squarederror")
 
         model.fit(X_train_reshaped, y_train)
@@ -131,11 +131,11 @@ if __name__ == "__main__":
             train, val, test, window_size=28, forecast_steps=7
         )
 
-        best_model, val_rmse = train_and_evaluate_model(X_train, y_train, X_val, y_val)
+        model, val_rmse = train_and_evaluate_model(X_train, y_train, X_val, y_val)
 
         model_dir = "../models/xgboost_model"
         model_path = os.path.join(model_dir, "xgboost_model.pkl")
-        save_model(best_model, model_dir, model_path)
+        save_model(model, model_dir, model_path)
         metrics = {"rmse": val_rmse}
 
         model = mr.python.create_model(
