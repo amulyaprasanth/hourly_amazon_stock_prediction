@@ -15,7 +15,7 @@ def setup_logger(log_variable="my_app", log_dir="../logs"):
     logger.setLevel(logging.INFO)
 
     # Avoid adding duplicate handlers
-    if not logger.handlers:
+    if not logger.hasHandlers():
         # File Handler
         file_handler = logging.FileHandler(log_filename)
         file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))

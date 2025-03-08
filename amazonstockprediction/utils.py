@@ -172,3 +172,42 @@ def generate_sequence(
     except Exception as e:
         logger.error(f"Failed to generate sequences: {e}")
         raise
+
+
+def get_and_download_best_model(mr: ModelRegistry, model_name: str, model_dir: str) -> str:
+    """
+    Download the best model from the model registry.
+
+    Args:
+        mr (ModelRegistry): The model registry object.
+        model_name (str): The name of the model to download.
+        model_dir (str): The directory where the model should be saved.
+
+    Returns:
+        str: The path to the downloaded model.
+
+    Raises:
+        Exception: If there is an error in downloading the model.
+    """
+    try:
+        EVALUATION_METRIC = "rmse"
+        SORT_METRICS_BY = "min"
+
+        # Get the best model from the model registry
+        best_model = mr.get_best_model(model_name, EVALUATION_METRIC, SORT_METRICS_BY)
+
+        # Ensure the model directory exists
+        if not os.path.exists(model_dir):
+            logger.info(f"Model directory doesn't exist, creating directory: {model_dir}")
+            os.makedirs(model_dir)
+
+        # Download the model
+        if best_model is not None:
+            best_model_path = best_model.download(model_dir)
+            return best_model_path
+        else:
+            raise Exception("Best model not found in the model registry.")
+
+    except Exception as e:
+        logger.error(f"Failed to download the best model: {e}")
+        raise
