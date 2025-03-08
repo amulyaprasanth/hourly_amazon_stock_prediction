@@ -2,9 +2,9 @@ name: Reboot Streamlit Deployment
 
 on:
   schedule:
-    - cron: "30 0 * * *"    
+    - cron: "30 0 * * *"
   workflow_dispatch:
-    
+
 jobs:
   reboot:
     runs-on: ubuntu-latest
@@ -12,17 +12,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create or update dummy file
+      - name: Create dummy file
         run: |
-          echo "Dummy file to trigger reboot - $(date)" > dummy_file.txt
-      - name: Commit, clean up, and push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "Dummy file to trigger reboot" > dummy_file.txt
+
+      - name: Commit and push dummy file
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
           git add dummy_file.txt
-          git diff --staged --quiet || git commit -m "Trigger reboot and cleanup: $(date)"
-          git rm dummy_file.txt
-          git commit --amend --no-edit
+          git commit -m "Trigger reboot"
           git push origin main
