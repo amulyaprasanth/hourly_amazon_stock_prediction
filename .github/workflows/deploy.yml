@@ -1,0 +1,30 @@
+name: Deploy Streamlit App
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install Dependencies
+        run: poetry install
+
+      - name: Deploy to Streamlit Sharing
+        run: |
+          streamlit run app.py --server.port=8501

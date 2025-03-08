@@ -1,7 +1,7 @@
 [project]
 name = "amazonstockprediction"
 version = "0.1.0"
-description = ""
+description = "Daily Amazon Stock Predictions"
 authors = [
     {name = "amulyaprasanth",email = "amulyaprasanth301@gmail.com"}
 ]
