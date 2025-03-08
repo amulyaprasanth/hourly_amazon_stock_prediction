@@ -19,11 +19,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install Poetry
-        run: pip install poetry
-
-      - name: Install Dependencies
-        run: poetry install
+      - name: Install requirements
+        run: pip install hopsworks[python] pandas streamlit plotly altair
 
       - name: Deploy to Streamlit Sharing
         run: |
