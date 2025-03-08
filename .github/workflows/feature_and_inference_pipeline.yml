@@ -27,6 +27,12 @@ jobs:
       - name: Run Feature Pipeline
         env:
           HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
-        run: |
-          poetry run python amazonstockprediction/feature_pipeline.py
-          poetry run python amazonstockprediction/batch_inference_pipeline.py
+        run: poetry run python amazonstockprediction/feature_pipeline.py
+
+      - name: Wait for 5 minutes
+        run: sleep 300
+
+      - name: Run Inference Pipeline
+        env:
+          HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
+        run: poetry run python amazonstockprediction/batch_inference_pipeline.py
