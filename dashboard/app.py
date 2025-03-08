@@ -6,8 +6,6 @@ import plotly.express as px
 import plotly.graph_objs as go
 import altair as alt
 
-from dotenv import load_dotenv
-load_dotenv()
 
 hopsworks_api_key = os.getenv("HOPSWORKS_API_KEY")
 
