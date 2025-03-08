@@ -71,7 +71,7 @@ def create_dataframe_from_predictions(predictions: np.ndarray):
     time_index = [f"{today} {t}" for t in time_index]
 
     predictions_df = pd.DataFrame(
-        {"datetime": time_index, "prediction": predictions.squeeze()}
+        {"datetime": time_index, "close": predictions.squeeze()}
     )
 
     predictions_df["datetime"] = pd.to_datetime(predictions_df["datetime"])
