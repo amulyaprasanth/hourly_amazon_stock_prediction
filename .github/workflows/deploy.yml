@@ -1,10 +1,9 @@
 name: Deploy Streamlit App
 
 on:
+  schedule:
+    - cron: "30 0 * * *"
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   deploy:
@@ -17,11 +16,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.11.9'
 
       - name: Install requirements
         run: pip install hopsworks[python] pandas streamlit plotly altair
 
       - name: Deploy to Streamlit Sharing
+        env:
+          HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
         run: |
           streamlit run app.py --server.port=8501
