@@ -108,3 +108,18 @@ for i, col in enumerate(cols):
         )
 plot_predictions()
 plot_candle_chart(st.session_state["data"])
+
+
+# Disclaimer
+st.markdown("---")
+st.markdown(
+    """
+    **Disclaimer:**  
+    This application is for educational purposes only and is not intended to provide financial or investment advice. 
+    The stock predictions are based on historical data and algorithms, which may not predict future market behavior. 
+    Users should not rely on this application for trading decisions. Always consult with a qualified financial advisor 
+    before making any investment choices. The creators are not responsible for any financial losses or damages resulting 
+    from the use of this app.
+    """
+)
+
