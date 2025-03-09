@@ -29,7 +29,6 @@ try:
     df = calculate_indicators(df)
 
     # Inserting yesterday's data
-    print(df.iloc[-7:, :])
     amazon_fg.insert(df.iloc[-7:, :])
     logger.info("Historical stock data for Amazon inserted successfully.")
 
