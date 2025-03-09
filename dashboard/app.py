@@ -101,10 +101,10 @@ st.subheader("Today's Stock Predictions: ")
 cols = st.columns(7)
 for i, col in enumerate(cols):
     with col:
+        last_value = st.session_state.predictions.iloc[-(i+1)].close
         st.metric(
-            st.session_state.predictions.iloc[i].id,
-            value=f"${st.session_state.predictions.iloc[i].close:.2f}",
+            f"Prediction {i+1}",
+            value=f"${last_value:.2f}",
         )
-
 plot_predictions()
 plot_candle_chart(st.session_state["data"])
