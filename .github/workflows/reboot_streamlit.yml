@@ -12,14 +12,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create dummy file
+      - name: Create or update dummy file
         run: |
-          echo "Dummy file to trigger reboot" > dummy_file.txt
+          echo "Dummy file updated at $(date)" > dummy_file.txt
 
       - name: Commit and push dummy file
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           git add dummy_file.txt
-          git commit -m "Trigger reboot"
+          git commit -m "Trigger reboot at $(date)" || echo "No changes to commit"
           git push origin main
