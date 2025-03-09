@@ -67,6 +67,7 @@ def fetch_historical_data(
             yf.download(
                 tickers=ticker,
                 period=period,
+                end=datetime.now() - timedelta(days=1),
                 interval=interval,
                 multi_level_index=False,
             )
