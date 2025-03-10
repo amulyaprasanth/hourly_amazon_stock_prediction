@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objs as go
 import altair as alt
-
+import datetime
 
 hopsworks_api_key = os.getenv("HOPSWORKS_API_KEY")
 
@@ -53,7 +53,6 @@ def plot_historical_data():
         )
     )
 
-
 def plot_candle_chart(stock_data):
     st.subheader("Candlestick Chart")
     candlestick_chart = go.Figure(
@@ -71,7 +70,6 @@ def plot_candle_chart(stock_data):
         xaxis_rangeslider_visible=False
     )
     st.plotly_chart(candlestick_chart, use_container_width=True)
-
 
 # Create the initial plot with historical data
 def plot_predictions():
@@ -97,17 +95,24 @@ def plot_predictions():
     
     st.write(fig)
 
-st.subheader("Today's Stock Predictions: ")
-cols = st.columns(7)
-for i, col in enumerate(cols):
-    with col:
-        last_value = st.session_state.predictions.iloc[-(i+1)].close
-        st.metric(
-            f"{st.session_state.predictions.iloc[-(i+1)].id}",
-            value=f"${last_value:.2f}",
-        )
-plot_predictions()
-plot_candle_chart(st.session_state["data"])
+# Check if today is a weekend
+today = datetime.datetime.today().weekday()
+
+if today in [5, 6]:  # 5 = Saturday, 6 = Sunday
+    st.subheader("📅 The stock market is closed today. Enjoy your weekend! 🏖️")
+    plot_candle_chart(st.session_state["data"])
+else:
+    st.subheader("Today's Stock Predictions: (UTC timezone)")
+    cols = st.columns(7)
+    for i, col in enumerate(cols):
+        with col:
+            last_value = st.session_state.predictions.iloc[-(i + 1)].close
+            st.metric(
+                f"{st.session_state.predictions.iloc[-(i + 1)].id}",
+                value=f"${last_value:.2f}",
+            )
+    plot_predictions()
+    plot_candle_chart(st.session_state["data"])
 
 # Disclaimer
 st.markdown("---")
@@ -121,4 +126,3 @@ st.markdown(
     from the use of this app.
     """
 )
-
