@@ -6,9 +6,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-feature-inference-pipeline:
+  feature-pipeline:
     runs-on: ubuntu-latest
-
+    outputs:
+      day_of_week: ${{ steps.get-day.outputs.day }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,8 +30,31 @@ jobs:
           HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
         run: poetry run python amazonstockprediction/feature_pipeline.py
 
-      - name: Wait for completion of materialization of features in feature store
-        run: sleep 300
+      - name: Get Current Day
+        id: get-day
+        run: echo "day=$(date +%A)" >> $GITHUB_OUTPUT
+
+  inference-pipeline:
+    runs-on: ubuntu-latest
+    needs: feature-pipeline
+    if: ${{ !contains('Saturday Sunday', needs.feature-pipeline.outputs.day_of_week) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11.9"
+
+      - name: Install Poetry
+        run: curl -sSL https://install.python-poetry.org | python3 -
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Delay for Feature Store Materialization
+        run: sleep 300  # 5-minute delay
 
       - name: Run Inference Pipeline
         env:
