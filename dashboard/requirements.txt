@@ -1,3 +1,4 @@
 hopsworks[python]
 streamlit
 plotly
+pyyaml

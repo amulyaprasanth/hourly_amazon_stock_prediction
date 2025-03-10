@@ -1,6 +1,6 @@
 import os
 import hopsworks
-
+import yaml
 from hsml.model_registry import ModelRegistry
 from hsfs.feature_store import FeatureStore
 import yfinance as yf
@@ -21,6 +21,24 @@ logger = setup_logger("helper_functions_logger")
 
 # Get the environment variables
 hopsworks_api_key = str(os.getenv("HOPSWORKS_API_KEY"))
+
+
+def read_yaml(yaml_file_path: str = "config/config.yml"):
+    """ Reads a YAML file and returns the contents as a dictionary.
+    Args:
+        yaml_file_path (str): The path to the YAML file.
+    Returns:
+        dict: The contents of the YAML file as a dictionary.
+    Raises:
+        Exception: If there is an error in reading the YAML file."""
+    with open(yaml_file_path, 'r') as f:
+        try:
+            data = yaml.safe_load(f)
+            return data
+
+        except yaml.YAMLError as e:
+            logger.error(f"Failed to read YAML file: {e}")
+            raise
 
 
 def get_feature_store(

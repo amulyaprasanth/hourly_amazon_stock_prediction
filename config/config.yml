@@ -1,0 +1,17 @@
+data_params :
+  feature_group_name: amazon_stock_prices
+  feature_view_name: amazon_fv
+  window_size : 28
+  forecast_steps : 7
+  train_size: 0.7
+  val_size: 0.15
+
+model_params:
+  xgboost_model:
+    model_dir: ../models/xgboost_model
+    model_path :  xgboost_model.pkl
+    model_name: amazon_stock_price_prediction_model_xgboost
+
+
+inference_params:
+ predictions_feature_group: amazon_stock_predictions

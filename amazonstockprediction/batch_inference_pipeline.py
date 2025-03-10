@@ -5,11 +5,13 @@ import numpy as np
 from hsfs.feature_view import FeatureView
 import pandas as pd
 from amazonstockprediction.logger import setup_logger
-from amazonstockprediction.utils import get_feature_store, get_and_download_best_model
+from amazonstockprediction.utils import get_feature_store, get_and_download_best_model, read_yaml
 
 # Setup logger
 logger = setup_logger("inference_pipeline")
 
+# setup ocnfig
+config = read_yaml()
 
 def get_hopsworks_objects():
     """Returns feature store, model registry and Amazon feature view.
@@ -23,12 +25,12 @@ def get_hopsworks_objects():
     fs, mr = get_feature_store()
 
     logger.info("Getting Amazon feature view...")
-    amazon_fv = fs.get_feature_view("amazon_fv", version=1)
+    amazon_fv = fs.get_feature_view(config['data_params']['feature_view_name'], version=1)
 
     return fs, mr, amazon_fv
 
 
-def prepare_inference_data(fv: FeatureView, window_size: int = 28):
+def prepare_inference_data(fv: FeatureView, window_size: int = config['data_params']['window_size']):
     try:
         logger.info("Preparing inference data...")
         # Get the last window_size data points from the feature view
@@ -91,13 +93,13 @@ if __name__ == "__main__":
         logger.info("Downloading the best model...")
         download_dir = get_and_download_best_model(
             mr,
-            model_name="amazon_stock_price_prediction_model_xgboost",
-            model_dir="../models/xgboost_model",
+            model_name=config["model_params"]['xgboost_model']["model_name"],
+            model_dir=config['model_params']['xgboost_model']['model_dir'],
         )
 
         # Load model
         logger.info("Loading model...")
-        model = joblib.load(os.path.join(download_dir, "xgboost_model.pkl"))
+        model = joblib.load(os.path.join(download_dir, config['model_params']['xgboost_model']['model_path']))
 
         # Prepare inference data
         inference_data = prepare_inference_data(amazon_fv)
@@ -117,7 +119,7 @@ if __name__ == "__main__":
 
         logger.info("Inserting predictions into feature store...")
         amazon_prediction_fg = fs.get_or_create_feature_group(
-            name="amazon_stock_predictions",
+            name=config["inference_params"]["predictions_feature_group"],
             description="Amazon stock predictions",
             version=1,
             online_enabled=True,

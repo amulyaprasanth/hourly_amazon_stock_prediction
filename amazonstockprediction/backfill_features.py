@@ -3,11 +3,14 @@ import requests
 import hopsworks
 import pandas as pd
 from amazonstockprediction.logger import setup_logger
-from amazonstockprediction.utils import fetch_historical_data, calculate_indicators
+from amazonstockprediction.utils import fetch_historical_data, calculate_indicators, read_yaml
 from dotenv import load_dotenv
 
 # Load the .env file
 load_dotenv()
+
+# Get the data params config
+data_params = read_yaml()["data_params"]
 
 # Get the environment variables
 hopsworks_api_key = os.getenv("HOPSWORKS_API_KEY")
@@ -49,7 +52,7 @@ def upload_to_feature_store(df):
 
         # Get or Create feature group
         amazon_fg = fs.get_or_create_feature_group(
-            name="amazon_stock_prices",
+            name=data_params['feature_group_name'],
             description="Amazon last 5 year stock prices",
             version=1,
             online_enabled=True,

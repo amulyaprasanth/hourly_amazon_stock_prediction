@@ -2,12 +2,15 @@ import os
 import hopsworks
 from amazonstockprediction.logger import setup_logger
 from dotenv import load_dotenv
-from amazonstockprediction.utils import fetch_historical_data, calculate_indicators
+from amazonstockprediction.utils import fetch_historical_data, calculate_indicators, read_yaml
 
 load_dotenv()
 
 # setup logger
 logger = setup_logger("feature_pipeline")
+
+# Get the data params config
+data_params = read_yaml()["data_params"]
 
 try:
     # Get the environment variables
@@ -18,7 +21,7 @@ try:
     # Login to project and feature store and get feature store
     project = hopsworks.login(api_key_value=str(hopsworks_api_key))
     fs = project.get_feature_store()
-    amazon_fg = fs.get_feature_group("amazon_stock_prices", version=1)
+    amazon_fg = fs.get_feature_group(data_params['feature_group_name'], version=1)
 
     # Fetch historical stock data for Amazon
     logger.info("Fetching historical stock data for Amazon...")

@@ -5,7 +5,6 @@ import pandas as pd
 import joblib
 from typing import Tuple
 import xgboost
-from sklearn.model_selection import GridSearchCV
 from sklearn.base import BaseEstimator
 from hsfs.feature_store import FeatureStore
 from hsfs.feature_view import FeatureView
@@ -15,19 +14,22 @@ from amazonstockprediction.utils import (
     get_feature_store,
     get_train_test_val_dates,
     generate_sequence,
+    read_yaml
 )
 from amazonstockprediction.logger import setup_logger
 
 # Setup logger
 logger = setup_logger("training_pipeline")
 
+# Get the config
+config = read_yaml()
 
 def get_or_create_feature_view(
     feature_store: FeatureStore,
 ) -> Tuple[FeatureView, str]:
     """Create a feature view in Hopsworks from the selected features in the provided feature group."""
     try:
-        amazon_fg = feature_store.get_feature_group("amazon_stock_prices", version=1)
+        amazon_fg = feature_store.get_feature_group(config["data_params"]["feature_group_name"], version=1)
         selected_features = amazon_fg.select(
             ["datetime", "open", "high", "close", "low", "volume", "rsi", "cci"]
         )
@@ -35,7 +37,7 @@ def get_or_create_feature_view(
         start_date = pd.DataFrame(amazon_fg.show(1))["id"][0].split()[0]
 
         amazon_fv = feature_store.get_or_create_feature_view(
-            name="amazon_fv",
+            name=config["data_params"]["feature_view_name"],
             version=1,
             query=selected_features,
         )
@@ -48,8 +50,8 @@ def get_time_series_data(
     train: pd.DataFrame,
     val: pd.DataFrame,
     test: pd.DataFrame,
-    window_size: int = 28,
-    forecast_steps: int = 7,
+    window_size: int = config['data_params']['window_size'],
+    forecast_steps: int = config['data_params']['forecast_steps'],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Split the data into train, val and test sets and generate sequences."""
     try:
@@ -116,7 +118,7 @@ if __name__ == "__main__":
             val_end_dt,
             test_start_dt,
             test_end_dt,
-        ) = get_train_test_val_dates(start_date)
+        ) = get_train_test_val_dates(start_date, train_size=config["data_params"]["train_size"], val_size=config["data_params"]["val_size"])
 
         train, val, test, _, _, _ = amazon_fv.train_validation_test_split(
             train_start=train_start_dt,
@@ -128,18 +130,17 @@ if __name__ == "__main__":
         )
 
         X_train, y_train, X_val, y_val, X_test, y_test = get_time_series_data(
-            train, val, test, window_size=28, forecast_steps=7
-        )
+            train, val, test)
 
         model, val_rmse = train_and_evaluate_model(X_train, y_train, X_val, y_val)
 
-        model_dir = "../models/xgboost_model"
-        model_path = os.path.join(model_dir, "xgboost_model.pkl")
+        model_dir = config["model_params"]['xgboost_model']["model_dir"]
+        model_path = os.path.join(model_dir, config['model_params']['xgboost_model']['model_path'])
         save_model(model, model_dir, model_path)
         metrics = {"rmse": val_rmse}
 
         model = mr.python.create_model(
-            name="amazon_stock_price_prediction_model_xgboost",
+            name=config["model_params"]['xgboost_model']["model_name"],
             description="XGBoost model for predicting Amazon stock prices",
             input_example=X_train[0],
             feature_view=amazon_fv,
