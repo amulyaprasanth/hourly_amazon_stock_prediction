@@ -1,17 +1,25 @@
-data_params :
+data_params:
   feature_group_name: amazon_stock_prices
   feature_view_name: amazon_fv
-  window_size : 28
-  forecast_steps : 7
+  window_size: 28 # Number of past steps used as input for predictions
+  forecast_steps: 7 # Number of steps to forecast
   train_size: 0.7
   val_size: 0.15
 
 model_params:
   xgboost_model:
     model_dir: ../models/xgboost_model
-    model_path :  xgboost_model.pkl
+    model_path: xgboost_model.pkl
     model_name: amazon_stock_price_prediction_model_xgboost
 
+  lstm_model:
+    input_size: 7
+    hidden_size: 32
+    num_layers: 2
+    num_epochs: 100
+    model_dir: ../models/lstm_model
+    model_filename: lstm_model.pth
+    model_name: amazon_stock_price_prediction_model_lstm
 
 inference_params:
- predictions_feature_group: amazon_stock_predictions
+  predictions_feature_group: amazon_stock_predictions
