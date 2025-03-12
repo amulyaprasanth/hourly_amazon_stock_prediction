@@ -4,20 +4,22 @@ data_params:
   window_size: 28 # Number of past steps used as input for predictions
   forecast_steps: 7 # Number of steps to forecast
   train_size: 0.7
-  val_size: 0.15
+
 
 model_params:
+  preprocessor_filename : preprocessor_obj.pkl
   xgboost_model:
-    model_dir: ../models/xgboost_model
+    model_dir: models/xgboost_model
     model_path: xgboost_model.pkl
     model_name: amazon_stock_price_prediction_model_xgboost
 
   lstm_model:
+    batch_size: 32
     input_size: 7
     hidden_size: 32
     num_layers: 2
-    num_epochs: 100
-    model_dir: ../models/lstm_model
+    num_epochs: 10
+    model_dir: models/lstm_model
     model_filename: lstm_model.pth
     model_name: amazon_stock_price_prediction_model_lstm
 

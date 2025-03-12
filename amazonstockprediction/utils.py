@@ -128,49 +128,42 @@ def calculate_indicators(data: pd.DataFrame) -> pd.DataFrame:
         raise
 
 
-def get_train_test_val_dates(
+def get_train_test_dates(
     start_date: str,
     end_date: str = (datetime.now() - timedelta(1)).strftime("%Y-%m-%d"),
-    train_size: float = 0.7,
-    val_size: float = 0.15,
-) -> Tuple[str, str, str, str, str, str]:
-    """Split the data into training, validation, and test sets.
+    train_size: float = 0.80,
+) -> Tuple[str, str, str, str]:
+    """Split the data into training and test sets.
     Arguments:
         start_date (str): The start date of the data.
         end_date (str): The end date of the data.
         train_size (float): The proportion of data for training.
-        val_size (float): The proportion of data for validation.
 
     Returns:
-        tuple: The start and end dates for training, validation, and test sets.
+        tuple: The start and end dates for training and test sets.
     """
     try:
         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
         end_dt = datetime.strptime(end_date, "%Y-%m-%d")
         total_days = (end_dt - start_dt).days
         train_days = int(train_size * total_days)
-        val_days = int(val_size * total_days)
         train_start_dt = start_dt
         train_end_dt = start_dt + timedelta(days=train_days - 1)
-        val_start_dt = train_end_dt + timedelta(days=1)
-        val_end_dt = val_start_dt + timedelta(days=val_days - 1)
-        test_start_dt = val_end_dt + timedelta(days=1)
+        test_start_dt = train_end_dt + timedelta(days=1)
         test_end_dt = end_dt
         return (
             train_start_dt.strftime("%Y-%m-%d"),
             train_end_dt.strftime("%Y-%m-%d"),
-            val_start_dt.strftime("%Y-%m-%d"),
-            val_end_dt.strftime("%Y-%m-%d"),
             test_start_dt.strftime("%Y-%m-%d"),
             test_end_dt.strftime("%Y-%m-%d"),
         )
     except Exception as e:
-        logger.error(f"Failed to split data into train, validation, and test sets: {e}")
+        logger.error(f"Failed to split data into train and test sets: {e}")
         raise
 
 
 def generate_sequence(
-    data: pd.DataFrame, window_size: int = 24, forecast_steps: int = 6
+    data: np.ndarray, window_size: int = 24, forecast_steps: int = 6
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Generate sequences of data for time series forecasting.
@@ -187,9 +180,9 @@ def generate_sequence(
         X = []
         y = []
         for i in range(len(data) - window_size - forecast_steps):
-            X.append(data.iloc[i : i + window_size].values)
+            X.append(data[i : i + window_size])
             y.append(
-                data.iloc[i + window_size : i + window_size + forecast_steps, 2].values
+                data[i + window_size : i + window_size + forecast_steps, 2]
             )
         return np.array(X), np.array(y)
     except Exception as e:

@@ -2,7 +2,7 @@ import logging
 import datetime
 import os
 
-def setup_logger(log_variable="my_app", log_dir="../logs"):
+def setup_logger(log_variable="my_app", log_dir="logs"):
     # Ensure log directory exists
     os.makedirs(log_dir, exist_ok=True)
 
