@@ -1,4 +1,5 @@
-# hourly_amazon_stock_prediction
+# Daily Amazon Stock Price Prediction (Hourly)
+
 
 **Disclaimer:**
 
