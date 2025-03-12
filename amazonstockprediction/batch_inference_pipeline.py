@@ -1,12 +1,12 @@
 import os
-import joblib
+import torch
 import datetime
 import numpy as np
 from hsfs.feature_view import FeatureView
 import pandas as pd
 from amazonstockprediction.logger import setup_logger
-from amazonstockprediction.utils import get_feature_store, get_and_download_best_model, read_yaml
-
+from amazonstockprediction.utils import get_feature_store, get_and_download_best_model, read_yaml, generate_sequence
+from amazonstockprediction.training_pipeline import LSTMModel
 # Setup logger
 logger = setup_logger("inference_pipeline")
 
@@ -41,11 +41,12 @@ def prepare_inference_data(fv: FeatureView, window_size: int = config['data_para
         # Reshape the data for inference to feed it into the model
         last_batch_data_reshaped = np.expand_dims(
             last_batch_data.drop("datetime", axis=1), axis=0
-        ).reshape(1, -1)
+        )
+
 
         # Validate the shape of the data
         assert (
-            last_batch_data_reshaped.shape[1] == 28 * 7
+            last_batch_data_reshaped.shape == (1, 28, 7)
         ), "The data shape does not match the expected input shape for the model"
 
         logger.info("Inference data prepared successfully.")
@@ -93,20 +94,29 @@ if __name__ == "__main__":
         logger.info("Downloading the best model...")
         download_dir = get_and_download_best_model(
             mr,
-            model_name=config["model_params"]['xgboost_model']["model_name"],
-            model_dir=config['model_params']['xgboost_model']['model_dir'],
+            model_name=config["model_params"]['lstm_model']["model_name"],
+            model_dir=config['model_params']['lstm_model']['model_dir'],
         )
 
         # Load model
         logger.info("Loading model...")
-        model = joblib.load(os.path.join(download_dir, config['model_params']['xgboost_model']['model_path']))
+        model = LSTMModel(
+           input_size = config["model_params"]["lstm_model"]["input_size"],
+           hidden_size = config["model_params"]["lstm_model"]["hidden_size"],
+           num_layers = config["model_params"]["lstm_model"]["num_layers"],
+           output_size= config["data_params"]["forecast_steps"]
+        )
+        model = torch.load(os.path.join(download_dir, config['model_params']['lstm_model']['model_filename']), weights_only= False)
 
         # Prepare inference data
         inference_data = prepare_inference_data(amazon_fv)
+        print(inference_data.shape)
 
         # Make predictions
         logger.info("Making predictions...")
-        predictions = model.predict(inference_data)
+        model.eval()
+        with torch.no_grad():
+            predictions = model(torch.tensor(inference_data, dtype=torch.float32))
 
         # Create a dataframe from the predictions
         logger.info("Creating predictions dataframe...")

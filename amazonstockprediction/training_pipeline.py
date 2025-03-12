@@ -1,20 +1,18 @@
 import os
-import hsfs
 import numpy as np
 import pandas as pd
-import joblib
 from typing import Tuple
-import xgboost
-from sklearn.base import BaseEstimator
+import torch
+from torch import nn
 from hsfs.feature_store import FeatureStore
 from hsfs.feature_view import FeatureView
-from sklearn.metrics import mean_squared_error
-from xgboost import XGBRegressor
+from sklearn.metrics import root_mean_squared_error
 from amazonstockprediction.utils import (
     get_feature_store,
     get_train_test_val_dates,
     generate_sequence,
-    read_yaml
+    read_yaml,
+    fit
 )
 from amazonstockprediction.logger import setup_logger
 
@@ -76,18 +74,69 @@ def get_time_series_data(
         logger.error(f"Error generating time series data: {e}")
         raise
 
+
+class AmazonStockDataset(torch.utils.data.Dataset):
+    def __init__(self, X: np.ndarray, y: np.ndarray):
+        super().__init__()
+        self.X = X
+        self.y = y
+
+    def __len__(self):
+        return len(self.X)
+    
+    def __getitem__(self, idx):
+        return torch.tensor(self.X[idx], dtype=torch.float32), torch.tensor(self.y[idx], dtype=torch.float32)
+
+class LSTMModel(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, output_size):
+        super(LSTMModel, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        out, _ = self.lstm(x, (h0, c0))
+        out = self.fc(out[:, -1, :])
+        return out
+    
 def train_and_evaluate_model(
     X_train: np.ndarray, y_train: np.ndarray, X_val: np.ndarray, y_val: np.ndarray
-) -> Tuple[xgboost.sklearn.XGBRegressor, float]:
+) -> Tuple[nn.Module, float]:
     try:
-        X_train_reshaped = X_train.reshape(X_train.shape[0], -1)
-        X_val_reshaped = X_val.reshape(X_val.shape[0], -1)
-        model = XGBRegressor(objective="reg:squarederror")
+        # Create dataloaders
+        logger.info("Creating dataset and dataloaders...")
+        train_dataset = AmazonStockDataset(X_train, y_train)
+        val_dataset = AmazonStockDataset(X_val, y_val)
 
-        model.fit(X_train_reshaped, y_train)
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True)
+        val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=32)
 
-        y_pred_val = model.predict(X_val_reshaped)
-        val_rmse = float(np.sqrt(mean_squared_error(y_val, y_pred_val)))
+        # Create model
+        logger.info("Creating LSTM model...")
+        model = LSTMModel(
+           input_size = config["model_params"]["lstm_model"]["input_size"],
+           hidden_size = config["model_params"]["lstm_model"]["hidden_size"],
+           num_layers = config["model_params"]["lstm_model"]["num_layers"],
+           output_size= config["data_params"]["forecast_steps"]
+        )
+
+        loss_fn = nn.MSELoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+        num_epochs = config["model_params"]["lstm_model"]["num_epochs"]
+
+        # Train the model 
+        logger.info("Training...")
+        fit(model, train_loader, val_loader, loss_fn, optimizer, logger, num_epochs)
+       
+        logger.info("Model Evaluation...")
+        model.eval()
+        with torch.no_grad():
+            y_pred_val = model(torch.tensor(X_val, dtype=torch.float32))
+
+        val_rmse =float(root_mean_squared_error(y_val, y_pred_val))
 
         logger.info(f"Validation RMSE: {val_rmse}")
 
@@ -96,12 +145,12 @@ def train_and_evaluate_model(
         logger.error(f"Error during model training and evaluation: {e}")
         raise
 
-def save_model(model: BaseEstimator, model_dir: str, model_path: str):
+def save_model(model: nn.Module, model_dir: str, model_filename: str):
     try:
         if not os.path.exists(model_dir):
             os.makedirs(model_dir)
-        joblib.dump(model, model_path)
-        logger.info(f"Model saved to {model_path}")
+        torch.save(model, model_filename)
+        logger.info(f"Model saved to {model_filename}")
     except Exception as e:
         logger.error(f"Error saving model: {e}")
         raise
@@ -134,18 +183,19 @@ if __name__ == "__main__":
 
         model, val_rmse = train_and_evaluate_model(X_train, y_train, X_val, y_val)
 
-        model_dir = config["model_params"]['xgboost_model']["model_dir"]
-        model_path = os.path.join(model_dir, config['model_params']['xgboost_model']['model_path'])
-        save_model(model, model_dir, model_path)
+        model_dir = config["model_params"]['lstm_model']["model_dir"]
+        model_filepath = os.path.join(model_dir, config['model_params']['lstm_model']['model_filename'])
+        save_model(model, model_dir, model_filepath)
+
         metrics = {"rmse": val_rmse}
 
-        model = mr.python.create_model(
-            name=config["model_params"]['xgboost_model']["model_name"],
-            description="XGBoost model for predicting Amazon stock prices",
+        model = mr.torch.create_model(
+            name=config["model_params"]['lstm_model']["model_name"],
+            description="LSTM Torch model for predicting Amazon stock prices",
             input_example=X_train[0],
             feature_view=amazon_fv,
             metrics = metrics
-        )
+        )   
         model.save(model_dir)
     except Exception as e:
         logger.error(f"Error in main execution: {e}")

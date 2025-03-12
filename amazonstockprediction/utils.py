@@ -1,12 +1,17 @@
+import logging
 import os
 import hopsworks
 import yaml
+import torch
+from torch import nn
 from hsml.model_registry import ModelRegistry
 from hsfs.feature_store import FeatureStore
 import yfinance as yf
 import numpy as np
 import pandas as pd
 
+from math import sqrt
+from tqdm.auto import tqdm
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from ta.momentum import RSIIndicator
@@ -191,6 +196,59 @@ def generate_sequence(
         logger.error(f"Failed to generate sequences: {e}")
         raise
 
+
+def fit(model: nn.Module, train_loader: torch.utils.data.DataLoader,
+          val_loader: torch.utils.data.DataLoader, loss_fn: nn.Module, optimizer: torch.optim.Optimizer, logger: logging.Logger,
+          num_epochs=10) -> nn.Module:
+    """
+    Train the model.
+
+    Args:
+        model (torch.nn.Module): The model to train.
+        train_loader (torch.utils.data.DataLoader): DataLoader for training data.
+        val_loader (torch.utils.data.DataLoader): DataLoader for validation data.
+        loss_fn (torch.nn.Module): Loss function.
+        optimizer (torch.optim.Optimizer): Optimizer.
+        num_epochs (int): Number of epochs to train for.
+
+    Returns:
+        torch.nn.Module: Trained model.
+
+    Raises:
+        Exception: If there is an error in training the model.
+    """
+    try:
+        for epoch in tqdm(range(num_epochs)):
+            train_loss, test_loss = 0.0, 0.0
+            model.train()
+
+            for X, y in train_loader:
+                outputs = model(X).squeeze()
+                loss = loss_fn(outputs, y)
+                train_loss += loss.item()
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            model.eval()
+
+            with torch.inference_mode():
+                for X, y in val_loader:
+                    outputs = model(X).squeeze()
+                    loss = loss_fn(outputs, y)
+                    test_loss += loss.item()
+
+            train_loss /= len(train_loader)
+            test_loss/=len(val_loader)
+
+            print(f"Epoch [{epoch+1}/{num_epochs}], Train Loss: {sqrt(train_loss):.4f}, Test Loss: {sqrt(test_loss):.4f}")
+
+        return model
+
+    except Exception as e:
+        logger.error(f"Failed to train model: {e}")
+        raise
+                
 
 def get_and_download_best_model(mr: ModelRegistry, model_name: str, model_dir: str) -> str:
     """
