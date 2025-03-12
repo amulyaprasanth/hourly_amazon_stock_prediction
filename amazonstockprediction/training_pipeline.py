@@ -1,4 +1,6 @@
+from codecs import ignore_errors
 import os
+import joblib
 import numpy as np
 import pandas as pd
 from typing import Tuple
@@ -6,10 +8,11 @@ import torch
 from torch import nn
 from hsfs.feature_store import FeatureStore
 from hsfs.feature_view import FeatureView
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import root_mean_squared_error
 from amazonstockprediction.utils import (
     get_feature_store,
-    get_train_test_val_dates,
+    get_train_test_dates,
     generate_sequence,
     read_yaml,
     fit
@@ -46,30 +49,41 @@ def get_or_create_feature_view(
 
 def get_time_series_data(
     train: pd.DataFrame,
-    val: pd.DataFrame,
     test: pd.DataFrame,
     window_size: int = config['data_params']['window_size'],
     forecast_steps: int = config['data_params']['forecast_steps'],
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Split the data into train, val and test sets and generate sequences."""
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, StandardScaler]:
+    """Scales the data and split the data into train, val and test sets and generate sequences.
+    Returns: 
+    X_train (np.ndarray): training feature array
+    y_train(np.ndarray): training target array
+    X_val (np.ndarray): test feature arrray
+    y_val (np.ndarray): test target array
+    preprocessor (StandardScaler): preprocessor object
+    """
     try:
 
 
-        # Sort the values by date and remove the datetime column
-        train = train.sort_values("datetime").drop("datetime", axis=1)
-        val = val.sort_values("datetime").drop("datetime", axis=1)
-        test = test.sort_values("datetime").drop("datetime", axis=1)
+        # Sort the values by date and remove the datetime column and ensure the column order
+        train = train.sort_values("datetime").drop("datetime", axis=1)[["open"
+                                                                        , "high", "close", "low", "volume", "rsi", "cci"]]
+        test = test.sort_values("datetime").drop("datetime", axis=1)[["open"
+                                                                        , "high", "close", "low", "volume", "rsi", "cci"]]
+
+
+        # Apply preprocessor
+        preprocessor = StandardScaler()
+        train_transformed = preprocessor.fit_transform(train)
+        test_transformed = preprocessor.transform(test)
+        
 
         X_train, y_train = generate_sequence(
-            train, window_size=window_size, forecast_steps=forecast_steps
-        )
-        X_val, y_val = generate_sequence(
-            val, window_size=window_size, forecast_steps=forecast_steps
+            train_transformed, window_size=window_size, forecast_steps=forecast_steps
         )
         X_test, y_test = generate_sequence(
-            test, window_size=window_size, forecast_steps=forecast_steps
+            test_transformed, window_size=window_size, forecast_steps=forecast_steps
         )
-        return X_train, y_train, X_val, y_val, X_test, y_test
+        return X_train, y_train, X_test, y_test, preprocessor
     except Exception as e:
         logger.error(f"Error generating time series data: {e}")
         raise
@@ -103,16 +117,16 @@ class LSTMModel(nn.Module):
         return out
     
 def train_and_evaluate_model(
-    X_train: np.ndarray, y_train: np.ndarray, X_val: np.ndarray, y_val: np.ndarray
+    X_train: np.ndarray, y_train: np.ndarray, X_test: np.ndarray, y_test: np.ndarray, preprocessor: StandardScaler
 ) -> Tuple[nn.Module, float]:
     try:
         # Create dataloaders
         logger.info("Creating dataset and dataloaders...")
         train_dataset = AmazonStockDataset(X_train, y_train)
-        val_dataset = AmazonStockDataset(X_val, y_val)
+        test_dataset = AmazonStockDataset(X_test, y_test)
 
-        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True)
-        val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=32)
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=config["model_params"]["lstm_model"]["batch_size"], shuffle=False)
+        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=config["model_params"]["lstm_model"]["batch_size"], shuffle=False)
 
         # Create model
         logger.info("Creating LSTM model...")
@@ -129,28 +143,40 @@ def train_and_evaluate_model(
 
         # Train the model 
         logger.info("Training...")
-        fit(model, train_loader, val_loader, loss_fn, optimizer, logger, num_epochs)
+        fit(model, train_loader, test_loader, loss_fn, optimizer, logger, num_epochs)
        
         logger.info("Model Evaluation...")
         model.eval()
         with torch.no_grad():
-            y_pred_val = model(torch.tensor(X_val, dtype=torch.float32))
+            y_pred = model(torch.tensor(X_test, dtype=torch.float32))
 
-        val_rmse =float(root_mean_squared_error(y_val, y_pred_val))
+        # Do the inverse transform to find rmse
+        feature_mean = preprocessor.mean_[2] # type: ignore
+        feature_std = preprocessor.scale_[2] # type: ignore
+        
+        # Inverse transform the scaled value
+        inverse_transformed_preds = y_pred * feature_std + feature_mean
+        test_rmse =float(root_mean_squared_error(y_test, inverse_transformed_preds))
 
-        logger.info(f"Validation RMSE: {val_rmse}")
+        logger.info(f"Validation RMSE: {test_rmse}")
 
-        return model, val_rmse
+        return model, test_rmse
     except Exception as e:
         logger.error(f"Error during model training and evaluation: {e}")
         raise
 
-def save_model(model: nn.Module, model_dir: str, model_filename: str):
+def save_model_and_preprocessor(model: nn.Module, preprocessor: StandardScaler, model_dir: str, model_filepath: str, preprocessor_filepath: str):
     try:
         if not os.path.exists(model_dir):
             os.makedirs(model_dir)
-        torch.save(model, model_filename)
-        logger.info(f"Model saved to {model_filename}")
+
+        logger.info("Saving model and preprocessor ...")
+
+        torch.save(model, model_filepath)
+        joblib.dump(preprocessor, preprocessor_filepath)
+
+        logger.info(f"Model saved to {model_filepath}")
+        logger.info(f"Preprocessor saved to {preprocessor_filepath}")
     except Exception as e:
         logger.error(f"Error saving model: {e}")
         raise
@@ -163,31 +189,30 @@ if __name__ == "__main__":
         (
             train_start_dt,
             train_end_dt,
-            val_start_dt,
-            val_end_dt,
             test_start_dt,
             test_end_dt,
-        ) = get_train_test_val_dates(start_date, train_size=config["data_params"]["train_size"], val_size=config["data_params"]["val_size"])
+        ) = get_train_test_dates(start_date, train_size=config["data_params"]["train_size"])
 
-        train, val, test, _, _, _ = amazon_fv.train_validation_test_split(
+        train,  test,  _, _ = amazon_fv.train_test_split(
             train_start=train_start_dt,
             train_end=train_end_dt,
-            val_start=val_start_dt,
-            val_end=val_end_dt,
             test_start=test_start_dt,
             test_end=test_end_dt,
         )
 
-        X_train, y_train, X_val, y_val, X_test, y_test = get_time_series_data(
-            train, val, test)
+        X_train, y_train, X_test, y_test, preprocessor= get_time_series_data(
+            train, test)
 
-        model, val_rmse = train_and_evaluate_model(X_train, y_train, X_val, y_val)
+        model, test_rmse = train_and_evaluate_model(X_train, y_train, X_test, y_test, preprocessor)
 
         model_dir = config["model_params"]['lstm_model']["model_dir"]
         model_filepath = os.path.join(model_dir, config['model_params']['lstm_model']['model_filename'])
-        save_model(model, model_dir, model_filepath)
+        preprocessor_filepath = os.path.join(model_dir, config['model_params']['preprocessor_filename'])
+        save_model_and_preprocessor(model= model,
+                                    preprocessor = preprocessor,
+                                      model_dir = model_dir, model_filepath=model_filepath, preprocessor_filepath=preprocessor_filepath)
 
-        metrics = {"rmse": val_rmse}
+        metrics = {"rmse": test_rmse}
 
         model = mr.torch.create_model(
             name=config["model_params"]['lstm_model']["model_name"],
