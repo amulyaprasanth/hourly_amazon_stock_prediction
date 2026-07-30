@@ -5,9 +5,8 @@ data_params:
   forecast_steps: 7 # Number of steps to forecast
   train_size: 0.7
 
-
 model_params:
-  preprocessor_filename : preprocessor_obj.pkl
+  preprocessor_filename: preprocessor_obj.pkl
   xgboost_model:
     model_dir: models/xgboost_model
     model_path: xgboost_model.pkl
@@ -22,6 +21,7 @@ model_params:
     model_dir: models/lstm_model
     model_filename: lstm_model.pth
     model_name: amazon_stock_price_prediction_model_lstm
+    learning_rate: 0.001
 
 inference_params:
   predictions_feature_group: amazon_stock_predictions
