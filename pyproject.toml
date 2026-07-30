@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "feast>=0.65.0",
-    "mlflow>=3.14.0",
     "numpy>=2.5.1",
     "pandas>=2.3.3",
     "plotly>=6.9.0",
