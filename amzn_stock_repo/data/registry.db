@@ -1,0 +1,44 @@
+
+B
+"
+stock"tickerJamzn_stock_repo
+Ä½£Ó¸ú˜çÄ½£Ó¸ú˜ç
+F
+&
+__dummy"
+__dummy_idJamzn_stock_repo
+Ä½£ÓĞİŸçÄ½£ÓĞİŸç1"$a859b493-b6a9-4827-98a7-02ea0e22b1eb*ëÇ£Ó õ¶“2œ
+û
+amazon_stock_fvamzn_stock_repostock"	
+close"
+high"
+low"
+open"
+
+volume"
+rsi"
+cci2:›datetimeZ$"data/amazon_stock_features.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢amazon_stock_source’Ä½£Ó€€ìÖ"Ä½£Ó¸•ç@JÏ	datetimeŠfeast.data_source.PushSource¢amazon_stock_push_sourceÒgdatetimeZ$"data/amazon_stock_features.parquet¢amazon_stock_source’Ä½£Ó€€ìÖ"Ä½£Ó¸•ç’Ä½£Óˆ›ğÖ"Ä½£Ó¨úşæb
+
+ticker’latest
+Ä½£Óˆæ¤çÄ½£Óˆæ¤çRÄ
+Á
+,feast.infra.online_stores.sqlite.SqliteTable"
+mC:\Users\AMULYA PRASANTH\Documents\GitHub\hourly_amazon_stock_prediction\amzn_stock_repo\data\online_store.dbamzn_stock_repo_amazon_stock_fvbá	datetimeŠfeast.data_source.PushSource¢amazon_stock_push_sourceªamzn_stock_repoÒgdatetimeZ$"data/amazon_stock_features.parquet¢amazon_stock_source’Ä½£Ó€€ìÖ"Ä½£Ó€€ìÖ’Ä½£Óˆ›ğÖ"Ä½£Ó¨úşæb­datetimeZ$"data/amazon_stock_features.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢amazon_stock_sourceªamzn_stock_repo’Ä½£Ó€€ìÖ"Ä½£Ó¸•çŠ_
+?
+amzn_stock_repo,a project for predicting amazon stock prices
+Ä½£Ó°šŞÖÄ½£Ó°šŞÖ’†
+ƒ
+amazon_stock_fvamzn_stock_repo"feature_view*œ
+û
+amazon_stock_fvamzn_stock_repostock"	
+close"
+high"
+low"
+open"
+
+volume"
+rsi"
+cci2:›datetimeZ$"data/amazon_stock_features.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢amazon_stock_source’Ä½£Ó€€ìÖ"Ä½£Ó¸•ç@JÏ	datetimeŠfeast.data_source.PushSource¢amazon_stock_push_sourceÒgdatetimeZ$"data/amazon_stock_features.parquet¢amazon_stock_source’Ä½£Ó€€ìÖ"Ä½£Ó¸•ç’Ä½£Óˆ›ğÖ"Ä½£Ó¨úşæb
+
+ticker’latest
+Ä½£Óˆæ¤çÄ½£Óˆæ¤ç2Ä½£Óà¶ÆçB$db33834d-770b-4488-9413-0c5d2c2e5d00
