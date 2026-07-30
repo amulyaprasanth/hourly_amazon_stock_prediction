@@ -1,9 +1,7 @@
 import logging
 from math import sqrt
 
-import mlflow
 import torch
-from mlflow import pytorch
 from torch import nn
 from tqdm import tqdm
 
@@ -30,62 +28,43 @@ class Trainer:
         val_loader: torch.utils.data.DataLoader,
         logger: logging.Logger,
         params: dict,
-    ) -> tuple[nn.Module, str]:
+    ) -> nn.Module:
         """
         Train the model, logging parameters, metrics, and the final model to MLflow.
         """
         try:
-            with mlflow.start_run() as run:
-                mlflow.log_params(params)
-                mlflow.log_param("optimizer", "Adam")
-                mlflow.log_param("loss_function", "Mean Squared Error")
-                mlflow.log_param("device", str(self.device))
+            for epoch in tqdm(range(params["num_epochs"])):
+                train_loss, val_loss = 0.0, 0.0
+                self.model.train()
 
+                for X, y in train_loader:
+                    X, y = X.to(self.device), y.to(self.device)
+                    outputs = self.model(X).squeeze(-1)
+                    loss = self.loss_fn(outputs, y)
+                    train_loss += loss.item()
+                    self.optimizer.zero_grad()
+                    loss.backward()
+                    self.optimizer.step()
 
-                for epoch in tqdm(range(params["num_epochs"])):
-                    train_loss, val_loss = 0.0, 0.0
-                    self.model.train()
+                self.model.eval()
 
-                    for X, y in train_loader:
+                with torch.inference_mode():
+                    for X, y in val_loader:
                         X, y = X.to(self.device), y.to(self.device)
                         outputs = self.model(X).squeeze(-1)
                         loss = self.loss_fn(outputs, y)
-                        train_loss += loss.item()
-                        self.optimizer.zero_grad()
-                        loss.backward()
-                        self.optimizer.step()
+                        val_loss += loss.item()
 
-                    self.model.eval()
+                train_loss /= len(train_loader)
+                val_loss /= len(val_loader)
 
-                    with torch.inference_mode():
-                        for X, y in val_loader:
-                            X, y = X.to(self.device), y.to(self.device)
-                            outputs = self.model(X).squeeze(-1)
-                            loss = self.loss_fn(outputs, y)
-                            val_loss += loss.item()
-
-                    train_loss /= len(train_loader)
-                    val_loss /= len(val_loader)
-
-                    logger.info(
-                        f"Epoch [{epoch + 1}/{params['num_epochs']}], "
-                        f"Train RMSE: {sqrt(train_loss):.4f}, Val RMSE: {sqrt(val_loss):.4f}"
-                    )
-
-                    mlflow.log_metrics(
-                        {"train_rmse": sqrt(train_loss), "val_rmse": sqrt(val_loss)},
-                        step=epoch,
-                    )
-
-                pytorch.log_model(
-                    self.model,
-                    name="amazon_stock_price_prediction_model_lstm",
-                    serialization_format="pickle"
+                logger.info(
+                    f"Epoch [{epoch + 1}/{params['num_epochs']}], "
+                    f"Train RMSE: {sqrt(train_loss):.4f}, Val RMSE: {sqrt(val_loss):.4f}"
                 )
 
-                run_id = run.info.run_id
 
-            return self.model, run_id
+            return self.model
 
         except Exception as e:
             logger.error(f"Failed to train model: {e}")

@@ -1,11 +1,9 @@
 import os
 
 import joblib
-import mlflow
 import numpy as np
 import pandas as pd
 from feast import FeatureStore
-from mlflow import exceptions
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 
@@ -21,7 +19,6 @@ logger = setup_logger("training_pipeline")
 # read the config file
 config = read_yaml()
 
-mlflow.set_tracking_uri("http://127.0.0.1:5000")
 
 # get the params config
 class TrainingPipeline:
@@ -295,7 +292,7 @@ class TrainingPipeline:
 
         # train the model — returns both the trained model and the run_id
         # it was logged under, since the run itself closes before this returns
-        trained_model, run_id = self.trainer.fit_with_mlflow(
+        trained_model = self.trainer.fit_with_mlflow(
             train_loader=train_loader,
             val_loader=val_loader,
             logger=logger,
@@ -306,57 +303,9 @@ class TrainingPipeline:
         test_rmse = self.trainer.evaluate(trained_model, test_loader)
         logger.info(f"Test RMSE: {test_rmse:.4f}")
 
-        # log the test metric against the same run (run has already closed,
-        # so we need to reopen it by run_id rather than starting a new one)
-        with mlflow.start_run(run_id=run_id):
-            mlflow.log_metric("test_rmse", test_rmse)
-
-        # register this run's model and promote to champion if it's better
-        self._register_and_maybe_promote(run_id, test_rmse)
-
         return trained_model
 
-    def _register_and_maybe_promote(self, run_id: str, test_rmse: float):
-        """
-        Register the model from this run into the MLflow Model Registry,
-        and promote it to the "champion" alias if it beats the current
-        champion's test RMSE. If no champion exists yet, this run becomes
-        the champion by default.
-
-        Args:
-            run_id (str): The run ID under which the trained model was logged.
-            test_rmse (float): This run's RMSE on the held-out test set.
-        """
-        client = mlflow.MlflowClient()
-        model_name = "amazon-stock-lstm"
-
-        # register a new version of the model from this run's artifacts
-        result = mlflow.register_model(
-            f"runs:/{run_id}/amazon_stock_price_prediction_model_lstm",
-            model_name,
-        )
-        logger.info(f"Registered {model_name} version {result.version}")
-
-        # fetch the current champion's test RMSE, if a champion exists
-        try:
-            champion = client.get_model_version_by_alias(model_name, "champion")
-            champion_rmse = client.get_run(champion.run_id).data.metrics.get( # pyright: ignore[reportArgumentType]
-                "test_rmse", float("inf")
-            )  # type:ignore
-        except exceptions.MlflowException:
-            # no champion registered yet — this run wins by default
-            champion_rmse = float("inf")
-
-        # promote only if this run's test RMSE is better (lower)
-        if test_rmse < champion_rmse:  # type:ignore
-            client.set_registered_model_alias(model_name, "champion", result.version)
-            logger.info(
-                f"New champion: version {result.version} (test RMSE {test_rmse:.4f})"
-            )
-        else:
-            logger.info(
-                f"Kept existing champion (RMSE {champion_rmse:.4f} vs new {test_rmse:.4f})"  # type:ignore
-            )
+    
 
 if __name__ == "__main__":
     try:
