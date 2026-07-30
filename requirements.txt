@@ -1,0 +1,14 @@
+numpy
+pandas
+scikit-learn
+seaborn
+ta
+python-dotenv
+yfinance
+xgboost
+streamlit
+plotly
+pyyaml
+torch 
+pytest
+feast
