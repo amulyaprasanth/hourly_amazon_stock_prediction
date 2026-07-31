@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import joblib
@@ -44,8 +45,6 @@ class InferencePipeline:
         self.window_size = config["data_params"]["window_size"]
         self.forecast_steps = config["data_params"]["forecast_steps"]
 
-        self.model_name = "amazon-stock-lstm"
-        self.model_alias = "champion"
         self.scaler_path = "artifacts/scaler.pkl"
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -242,10 +241,7 @@ class InferencePipeline:
             np.ndarray: Forecasted close prices for the next
                 `forecast_steps` hours.
         """
-        logger.info(
-            f"Starting inference pipeline run using "
-            f"'{self.model_name}@{self.model_alias}'"
-        )
+        logger.info("Starting inference pipeline run")
 
         latest_window = self.get_latest_features()
         x_tensor = self.preprocess(latest_window)
@@ -257,8 +253,29 @@ class InferencePipeline:
             logger.error(f"Model forward pass failed: {e}")
             raise
 
+        # Yesterday's date
+        today = datetime.now(UTC).date()
+
         forecast = self.postprocess(prediction)
-        logger.info(f"Forecasted close prices: {forecast}")
+
+        # Trading timestamps
+        timestamps = pd.date_range(
+            start=f"{today} 09:30:00",
+            periods=self.forecast_steps,
+            freq="1h",
+        )
+
+        prediction_df = pd.DataFrame(
+            {
+                "datetime": timestamps,
+                "prediction": forecast,
+            }
+        )
+        
+        prediction_df.to_csv(Path("artifacts/predictions.csv"), index=False)
+
+        logger.info("Saved prediction dataframe to artifacts/predictions.csv")
+
 
         logger.info("Inference pipeline run completed successfully")
         return forecast
@@ -270,7 +287,6 @@ if __name__ == "__main__":
         pipeline = InferencePipeline()
         forecast = pipeline.run()
         logger.info("Inference pipeline completed successfully.")
-        print(forecast)
     except Exception as e:
         logger.error(f"Inference pipeline failed: {e}")
         raise

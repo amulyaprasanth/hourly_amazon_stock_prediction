@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pandas as pd
 from feast import FeatureStore
@@ -144,6 +145,35 @@ class FeaturePipeline:
         except Exception as e:
             logger.error(f"Failed to push data to feature store: {e}")
             raise
+        
+        
+        prediction_path = Path("artifacts/predictions.csv")
+
+        if prediction_path.exists():
+            predictions = pd.read_csv(prediction_path)
+            predictions["datetime"] = pd.to_datetime(predictions["datetime"])
+
+            actual = data[["datetime", "close"]].rename(
+                columns={"close": "actual"}
+            )
+
+            prediction_vs_actual = predictions.merge(
+                actual,
+                on="datetime",
+                how="inner",
+            )
+
+            prediction_vs_actual.to_csv(
+                "artifacts/predicted_vs_actual.csv",
+                index=False,
+            )
+
+            logger.info(
+                "Saved %d prediction/actual pairs.",
+                len(prediction_vs_actual),
+            )
+        else:
+            logger.warning("predictions.csv not found. Skipping evaluation file.")
 
         logger.info("Feature pipeline run completed successfully")
 
