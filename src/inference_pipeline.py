@@ -1,11 +1,12 @@
+import json
+
 import joblib
-import mlflow
 import numpy as np
 import pandas as pd
 import torch
-from mlflow import exceptions, pytorch
 
 from src import setup_logger
+from src.models.lstm import LSTMModel
 from src.utils import calculate_indicators, fetch_historical_data, read_yaml
 
 # setup logger
@@ -13,8 +14,6 @@ logger = setup_logger("inference_pipeline")
 
 # read the config file
 config = read_yaml()
-
-mlflow.set_tracking_uri("http://127.0.0.1:5000")
 
 
 class InferencePipeline:
@@ -50,8 +49,17 @@ class InferencePipeline:
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+        self.input_size = config["model_params"]["lstm_model"]["input_size"]
+        self.hidden_size = config["model_params"]["lstm_model"]["hidden_size"]
+        self.num_layers = config["model_params"]["lstm_model"]["num_layers"]
+        self.output_size = config["data_params"]["forecast_steps"]
         self.scaler = self._load_scaler()
-        self.model = self._load_champion_model()
+        self.model = LSTMModel(
+            self.input_size, self.hidden_size, self.num_layers, self.output_size
+        )
+        self.registry_path = "src/models/registry.json"
+        self.load_best_model()
+        
 
     def _load_scaler(self):
         """
@@ -73,39 +81,6 @@ class InferencePipeline:
             raise
         except Exception as e:
             logger.error(f"Failed to load scaler: {e}")
-            raise
-
-    def _load_champion_model(self):
-        """
-        Load the current "champion" model from the MLflow Model Registry.
-
-        Uses the registry alias (not a hardcoded version number), so
-        inference always picks up whichever model was most recently
-        promoted by the training pipeline.
-
-        Returns:
-            torch.nn.Module: The champion model, set to eval mode.
-
-        Raises:
-            mlflow.exceptions.MlflowException: If no champion alias is
-                set, or the registered model can't be found.
-            Exception: If loading fails for any other reason.
-        """
-        try:
-            model_uri = f"models:/{self.model_name}@{self.model_alias}"
-            model = pytorch.load_model(model_uri, map_location=self.device)
-            model.to(self.device)
-            model.eval()
-            logger.info(f"Loaded champion model from {model_uri}")
-            return model
-        except exceptions.MlflowException as e:
-            logger.error(
-                f"Couldn't load champion model '{self.model_name}@{self.model_alias}' "
-                f"from MLflow registry: {e}"
-            )
-            raise
-        except Exception as e:
-            logger.error(f"Failed to load champion model: {e}")
             raise
 
     def get_latest_features(self) -> pd.DataFrame:
@@ -209,6 +184,51 @@ class InferencePipeline:
         except Exception as e:
             logger.error(f"Failed to inverse-transform prediction: {e}")
             raise
+
+    def load_best_model(self):
+        """
+        Load the best-performing model from the local model registry.
+
+        The registry maintains the top three models sorted in ascending
+        order of RMSE, so the first entry is always considered the current
+        best model. This method loads the corresponding model weights,
+        moves the model to the configured device, and switches it to
+        evaluation mode.
+
+        Raises:
+            RuntimeError:
+                If the registry is empty, the model checkpoint cannot be
+                loaded, or any other error occurs during the loading
+                process.
+        """
+        try:
+            with open(self.registry_path, "r") as f:
+                registry = json.load(f)
+
+            if len(registry) == 0:
+                raise RuntimeError("No registered models found.")
+
+            best_model = registry[0]
+
+            state_dict = torch.load(
+                best_model["path"],
+                map_location=self.device,
+                weights_only=True,
+            )
+
+            self.model.load_state_dict(state_dict)
+            self.model.to(self.device)
+            self.model.eval()
+
+            logger.info(
+                "Loaded model %s (RMSE %.4f)",
+                best_model["version"],
+                best_model["rmse"],
+            )
+
+        except Exception as e:
+            logger.exception("Failed to load best model.")
+            raise RuntimeError(f"Could not load best model: {e}") from e
 
     def run(self) -> np.ndarray:
         """
