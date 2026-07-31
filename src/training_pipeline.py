@@ -1,8 +1,12 @@
+import json
 import os
+from datetime import UTC, datetime
+from pathlib import Path
 
 import joblib
 import numpy as np
 import pandas as pd
+import torch
 from feast import FeatureStore
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
@@ -63,6 +67,8 @@ class TrainingPipeline:
         self.model = LSTMModel(
             self.input_size, self.hidden_size, self.num_layers, self.output_size
         )
+
+        self.registry_path = "src/models/registry.json"
 
         self.trainer = Trainer(self.model)
 
@@ -303,22 +309,107 @@ class TrainingPipeline:
         test_rmse = self.trainer.evaluate(trained_model, test_loader)
         logger.info(f"Test RMSE: {test_rmse:.4f}")
 
-        return trained_model
+        return trained_model, test_rmse
 
+
+
+    def register_model(self, trained_model: torch.nn.Module, test_rmse: float) -> None:
+        """
+        Register a trained model if it ranks among the top three models based on RMSE.
+
+        The method performs the following steps:
+            1. Loads the existing model registry.
+            2. Adds the newly trained model as a candidate.
+            3. Sorts all models by RMSE (lower is better).
+            4. Retains only the top three models.
+            5. Saves the new model only if it is in the top three.
+            6. Deletes models that are no longer in the top three.
+            7. Updates the registry on disk.
+
+        Args:
+            trained_model (torch.nn.Module):
+                The trained PyTorch model.
+
+            test_rmse (float):
+                RMSE of the model evaluated on the test dataset.
+
+        Raises:
+            RuntimeError:
+                If the model registration process fails.
+        """
+        try:
+            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M")
+            model_path = Path(f"src/models/model_{timestamp}.pt")
+
+            # Load registry
+            if os.path.exists(self.registry_path):
+                with open(self.registry_path, "r") as f:
+                    registry = json.load(f)
+            else:
+                registry = []
+
+            candidate = {
+                "version": timestamp,
+                "rmse": test_rmse,
+                "path": str(model_path),
+            }
+
+            # Determine the best three models
+            candidates = registry + [candidate]
+            candidates.sort(key=lambda model: model["rmse"])
+            top_models = candidates[:3]
+
+            # Save only if the candidate is in the top three
+            if candidate in top_models:
+                torch.save(trained_model.state_dict(), model_path)
+
+                # Remove models that are no longer in the top three
+                removed_models = [model for model in registry if model not in top_models]
+
+                for model in removed_models:
+                    path = Path(model["path"])
+                    if path.exists():
+                        path.unlink()
+
+                # Update registry
+                with open(self.registry_path, "w") as f:
+                    json.dump(top_models, f, indent=4)
+
+                logger.info(
+                    "Model %s registered successfully with RMSE %.4f.",
+                    timestamp,
+                    test_rmse,
+                )
+            else:
+                logger.info(
+                    "Model RMSE %.4f did not qualify for the top 3. Registration skipped.",
+                    test_rmse,
+                )
+
+        except (OSError, json.JSONDecodeError, RuntimeError) as e:
+            logger.exception("Failed to register model.")
+            raise RuntimeError(f"Model registration failed: {e}") from e
+        
+        
+    def run(self):
+        """ Run the pipeline """
+        try:
+            logger.info("Starting training pipeline...")
+            
+            train_loader, val_loader, test_loader = self.prepare_data()
     
+            trained_model, test_rmse = self.train_and_evaluate_model(train_loader, val_loader, test_loader)
+            
+            self.register_model(trained_model, test_rmse)
+    
+            logger.info("Training pipeline completed successfully.")
+        
+        except Exception as e:
+            logger.error(f"Training pipeline failed: {e}")
+            raise
+        
+
 
 if __name__ == "__main__":
-    try:
-        logger.info("Starting training pipeline...")
-
-        pipeline = TrainingPipeline()
-
-        train_loader, val_loader, test_loader = pipeline.prepare_data()
-
-        model = pipeline.train_and_evaluate_model(train_loader, val_loader, test_loader)
-
-        logger.info("Training pipeline completed successfully.")
-
-    except Exception as e:
-        logger.error(f"Training pipeline failed: {e}")
-        raise
+    pipeline = TrainingPipeline()
+    pipeline.run()
