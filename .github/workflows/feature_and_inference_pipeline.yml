@@ -29,3 +29,15 @@ jobs:
 
       - name: Run Inference Pipeline
         run: uv run python -m src.inference_pipeline
+
+      - name: Commit updated feature store
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          git add amzn_stock_repo/data/
+
+          git diff --cached --quiet || \
+            git commit -m "Update feature store"
+
+          git push
