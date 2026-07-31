@@ -2,6 +2,6 @@
     {
         "version": "20260731_0656",
         "rmse": 0.4123030131411403,
-        "path": "src\\models\\model_20260731_0656.pt"
+        "path": "src/models/model_20260731_0656.pt"
     }
 ]
