@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import joblib
 import numpy as np
@@ -59,7 +60,6 @@ class InferencePipeline:
         )
         self.registry_path = "src/models/registry.json"
         self.load_best_model()
-        
 
     def _load_scaler(self):
         """
@@ -211,7 +211,7 @@ class InferencePipeline:
             best_model = registry[0]
 
             state_dict = torch.load(
-                best_model["path"],
+                Path(best_model["path"]),
                 map_location=self.device,
                 weights_only=True,
             )
