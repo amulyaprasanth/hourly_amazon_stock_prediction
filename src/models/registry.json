@@ -10,8 +10,8 @@
         "path": "src/models/model_20260731_0656.pt"
     },
     {
-        "version": "20260913_0518",
-        "rmse": 0.48005990226041545,
-        "path": "src/models/model_20260913_0518.pt"
+        "version": "20260920_0520",
+        "rmse": 0.4623719009352967,
+        "path": "src/models/model_20260920_0520.pt"
     }
 ]
