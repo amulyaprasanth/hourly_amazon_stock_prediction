@@ -7,11 +7,13 @@ import joblib
 import numpy as np
 import pandas as pd
 import torch
-from feast import FeatureStore
 from sklearn.preprocessing import StandardScaler
+from sqlalchemy import select
+from sqlalchemy.orm import sessionmaker
 from torch.utils.data import DataLoader
 
 from src import setup_logger
+from src.db import Feature, engine
 from src.models.dataset import AmazonStockDataset
 from src.models.lstm import LSTMModel
 from src.models.trainer import Trainer
@@ -33,7 +35,8 @@ class TrainingPipeline:
         Sets up the Feast feature store connection, the feature scaler,
         and loads all data/model hyperparameters from the config file.
         """
-        self.fs = FeatureStore("amzn_stock_repo")
+        Session = sessionmaker(engine)
+        self.session = Session()
         self.scaler = StandardScaler()
         self.feature_columns = [
             "open",
@@ -72,7 +75,7 @@ class TrainingPipeline:
 
         self.trainer = Trainer(self.model)
 
-    def get_historical_features_df(self):
+    def get_historical_features_df(self) -> pd.DataFrame:
         """
         Queries feature store for feature and returns pandas DataFrame with historical features
 
@@ -81,25 +84,16 @@ class TrainingPipeline:
         """
 
         try:
-            entity_df = pd.read_parquet("amzn_stock_repo/data/entity_df.parquet")
+            # this block should load data and return the dataframe
+            query = select(Feature.__table__)
 
-            return self.fs.get_historical_features(
-                entity_df=entity_df,
-                features=[
-                    "amazon_stock_fv:high",
-                    "amazon_stock_fv:low",
-                    "amazon_stock_fv:open",
-                    "amazon_stock_fv:volume",
-                    "amazon_stock_fv:rsi",
-                    "amazon_stock_fv:cci",
-                    "amazon_stock_fv:close",
-                ],
-            ).to_df()
+            rows = self.session.execute(query)
 
-        except FileNotFoundError as e:
-            logger.error(f"Couldn't find entity parquet file : {e}")
-            raise
+            data = pd.DataFrame(rows.mappings().all())
 
+            self.session.close()
+
+            return data
         except Exception as e:
             logger.error(f"Error fetching historical features: {e}")
             raise
@@ -119,7 +113,7 @@ class TrainingPipeline:
 
         try:
             # sort the data by datetime column
-            training_df = training_df.sort_values("datetime").reset_index(drop=True)
+            training_df = training_df.sort_values("id").reset_index(drop=True)
             # reorder the columns
             training_df = training_df[self.feature_columns]
 
@@ -206,13 +200,13 @@ class TrainingPipeline:
                 self.forecast_steps,
             )
             x_val, y_val = generate_sequences(
-                val_transformed,
+                val_transformed,  # type:ignore
                 self.target_index,
                 self.window_size,
                 self.forecast_steps,
             )
             x_test, y_test = generate_sequences(
-                test_transformed,
+                test_transformed,  # type:ignore
                 self.target_index,
                 self.window_size,
                 self.forecast_steps,
@@ -311,8 +305,6 @@ class TrainingPipeline:
 
         return trained_model, test_rmse
 
-
-
     def register_model(self, trained_model: torch.nn.Module, test_rmse: float) -> None:
         """
         Register a trained model if it ranks among the top three models based on RMSE.
@@ -364,7 +356,9 @@ class TrainingPipeline:
                 torch.save(trained_model.state_dict(), model_path)
 
                 # Remove models that are no longer in the top three
-                removed_models = [model for model in registry if model not in top_models]
+                removed_models = [
+                    model for model in registry if model not in top_models
+                ]
 
                 for model in removed_models:
                     path = Path(model["path"])
@@ -389,25 +383,25 @@ class TrainingPipeline:
         except (OSError, json.JSONDecodeError, RuntimeError) as e:
             logger.exception("Failed to register model.")
             raise RuntimeError(f"Model registration failed: {e}") from e
-        
-        
+
     def run(self):
-        """ Run the pipeline """
+        """Run the pipeline"""
         try:
             logger.info("Starting training pipeline...")
-            
+
             train_loader, val_loader, test_loader = self.prepare_data()
-    
-            trained_model, test_rmse = self.train_and_evaluate_model(train_loader, val_loader, test_loader)
-            
+
+            trained_model, test_rmse = self.train_and_evaluate_model(
+                train_loader, val_loader, test_loader
+            )
+
             self.register_model(trained_model, test_rmse)
-    
+
             logger.info("Training pipeline completed successfully.")
-        
+
         except Exception as e:
             logger.error(f"Training pipeline failed: {e}")
             raise
-        
 
 
 if __name__ == "__main__":

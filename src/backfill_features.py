@@ -1,9 +1,14 @@
 import pandas as pd
+from sqlalchemy.orm import sessionmaker
+from tqdm.auto import tqdm
 
 from src import setup_logger
+from src.db import Feature, engine
 from src.utils import calculate_indicators, fetch_historical_data
 
 logger = setup_logger("backfill_features")
+Session = sessionmaker(engine)
+session = Session()
 
 
 class HistoricalFeatures:
@@ -13,19 +18,26 @@ class HistoricalFeatures:
         self.interval = interval
 
         self.df = self.get_and_process_historical_data()
-        
-        # entity df should contain ticker which is an entity here, timestamp and label col
-        self.entity_df = self.create_entity_df(self.df)
-
-        self.save_to_parquet(
-            self.df,
-            "amzn_stock_repo/data/amazon_stock_features.parquet",
+        self.df["datetime"] = pd.to_datetime(
+            self.df["datetime"], format="%Y-%m-%d %H:%M:%S"
         )
 
-        self.save_to_parquet(
-            self.entity_df,
-            "amzn_stock_repo/data/entity_df.parquet",
-        )
+        logger.info("Adding historical data into db")
+        for _, row in tqdm(self.df.iterrows(), total=len(self.df)):
+            user_record = Feature(
+                id=row["datetime"],
+                close=row["close"],
+                high=row["high"],
+                low=row["low"],
+                open=row["open"],
+                volume=row["volume"],
+                rsi=row["rsi"],
+                cci=row["cci"],
+            )
+            session.add(user_record)
+
+        session.commit()
+        session.close()
 
     def get_and_process_historical_data(self) -> pd.DataFrame:
         """
@@ -40,8 +52,7 @@ class HistoricalFeatures:
                 self.interval,
             )
 
-            # Feast requires an entity column.
-            df["ticker"] = self.ticker
+            logger.info(f"Found {len(df)} rows")
 
             logger.info("Calculating indicators...")
             df = calculate_indicators(df)
@@ -52,41 +63,6 @@ class HistoricalFeatures:
             logger.exception("Failed to fetch and process historical data.")
             raise
 
-    def create_entity_df(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Create the entity DataFrame required by Feast for
-        historical feature retrieval.
-        """
-
-        entity_df = df.copy()
-
-        # Feast only needs entity, timestamp and label
-        entity_df = entity_df[
-            [
-                "ticker",
-                "datetime",
-            ]
-        ]
-
-        return entity_df
-
-    def save_to_parquet(self, df: pd.DataFrame, save_filepath: str):
-        """
-        Save a DataFrame as a Parquet file.
-
-        Args:
-            df (pd.DataFrame): DataFrame to save.
-            save_filepath (str): Destination Parquet file path.
-        """
-        logger.info(f"Saving parquet file to {save_filepath}")
-        df.to_parquet(save_filepath, index=False)
-
 
 if __name__ == "__main__":
     historical_features = HistoricalFeatures("AMZN", "2y", "1h")
-
-    print("Feature DataFrame")
-    print(historical_features.df.head())
-
-    print("\nEntity DataFrame")
-    print(historical_features.entity_df.head())

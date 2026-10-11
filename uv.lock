@@ -768,9 +768,11 @@ dependencies = [
     { name = "pyyaml" },
     { name = "scikit-learn" },
     { name = "seaborn" },
+    { name = "sqlalchemy" },
     { name = "streamlit" },
     { name = "ta" },
     { name = "torch" },
+    { name = "tqdm" },
     { name = "xgboost" },
     { name = "yfinance" },
 ]
@@ -787,9 +789,11 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "scikit-learn", specifier = ">=1.9.0" },
     { name = "seaborn", specifier = ">=0.13.2" },
+    { name = "sqlalchemy", specifier = ">=2.0.51" },
     { name = "streamlit", specifier = ">=1.60.0" },
     { name = "ta", specifier = ">=0.11.0" },
     { name = "torch", specifier = ">=2.13.0" },
+    { name = "tqdm", specifier = ">=4.70.0" },
     { name = "xgboost", specifier = ">=3.3.0" },
     { name = "yfinance", specifier = ">=1.5.2" },
 ]

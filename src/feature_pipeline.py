@@ -2,10 +2,11 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
-from feast import FeatureStore
-from feast.data_source import PushMode
+from sqlalchemy.orm import sessionmaker
+from tqdm.auto import tqdm
 
 from src import setup_logger
+from src.db import Feature, engine
 from src.utils import calculate_indicators, fetch_historical_data
 
 # setup logger
@@ -24,9 +25,10 @@ class FeaturePipeline:
         feature store repo.
         """
         try:
-            self.feature_store = FeatureStore("amzn_stock_repo")
-        except Exception as e:
-            logger.error(f"Failed to initialize FeatureStore: {e}")
+            Session = sessionmaker(engine)
+            self.session = Session()
+        except Exception:
+            logger.exception("Unable to connect to the database.")
             raise
 
     def get_yesterdays_data(self) -> tuple[pd.DataFrame, str]:
@@ -73,29 +75,8 @@ class FeaturePipeline:
             data = calculate_indicators(data)
             logger.info("Calculated technical indicators")
 
-            # add ticker column after indicators, so it can't be lost/misaligned
-            data["ticker"] = "AMZN"
         except Exception as e:
             logger.error(f"Failed to calculate indicators: {e}")
-            raise
-
-        try:
-            # update the entity parquet file
-            new_entity_df = data[["ticker", "datetime"]]
-            old_entity_df = pd.read_parquet("amzn_stock_repo/data/entity_df.parquet")
-            entity_df = pd.concat(
-                [old_entity_df, new_entity_df],
-                ignore_index=True,
-            ).drop_duplicates()
-            entity_df.to_parquet("amzn_stock_repo/data/entity_df.parquet")
-            logger.info(f"Updated entity parquet file, {len(entity_df)} total rows")
-
-        except FileNotFoundError as e:
-            logger.error(f"Couldn't find entity parquet file: {e}")
-            raise
-
-        except Exception as e:
-            logger.error(f"Failed to update entity parquet file: {e}")
             raise
 
         return data
@@ -109,7 +90,7 @@ class FeaturePipeline:
         full_history = self.preprocess(full_history)
 
         # filter to yesterday's rows
-        data = full_history[
+        data: pd.DataFrame = full_history.loc[
             full_history["datetime"].dt.date == pd.to_datetime(yesterday).date()
         ].reset_index(drop=True)
 
@@ -117,45 +98,32 @@ class FeaturePipeline:
             logger.warning("No data to process, skipping push to feature store")
             return
 
-        if data[["rsi", "cci"]].isnull().any().any():
-            logger.warning("rsi/cci contain nulls even after using extended history")
-
-        data = data[
-            [
-                "datetime",
-                "close",
-                "high",
-                "low",
-                "open",
-                "volume",
-                "ticker",
-                "rsi",
-                "cci",
-            ]
-        ].reset_index(drop=True)
-        data["datetime"] = data["datetime"].astype("datetime64[us]")
-
-        try:
-            self.feature_store.push(
-                "amazon_stock_push_source", data, to=PushMode.ONLINE_AND_OFFLINE
+        for _, row in tqdm(
+            data.iterrows(), total=len(data), desc="updating database with latest data"
+        ):
+            user_record = Feature(
+                id=row["datetime"],
+                close=row["close"],
+                high=row["high"],
+                low=row["low"],
+                open=row["open"],
+                volume=row["volume"],
+                rsi=row["rsi"],
+                cci=row["cci"],
             )
-            logger.info(
-                f"Pushed {len(data)} rows to feature store (online and offline)"
-            )
-        except Exception as e:
-            logger.error(f"Failed to push data to feature store: {e}")
-            raise
-        
-        
+            self.session.add(user_record)
+
+        self.session.commit()
+        self.session.close()
+
+        # Adding actual values to the predicions  vs actual dataframe
         prediction_path = Path("artifacts/predictions.csv")
 
         if prediction_path.exists():
             predictions = pd.read_csv(prediction_path)
             predictions["datetime"] = pd.to_datetime(predictions["datetime"])
 
-            actual = data[["datetime", "close"]].rename(
-                columns={"close": "actual"}
-            )
+            actual = data[["datetime", "close"]].rename({"close": "actual"})
 
             prediction_vs_actual = predictions.merge(
                 actual,

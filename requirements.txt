@@ -11,4 +11,4 @@ plotly
 pyyaml
 torch 
 pytest
-feast
+sqlalchemy
