@@ -1,5 +1,6 @@
 import json
-from datetime import UTC, datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import joblib
@@ -253,12 +254,15 @@ class InferencePipeline:
             logger.error(f"Model forward pass failed: {e}")
             raise
 
-        # Yesterday's date
-        today = datetime.now(UTC).date()
+        # Current date in ET — yfinance data and forecast timestamps are
+        # both in naive ET, so we must use ET here to avoid a date boundary
+        # mismatch when this runs between midnight UTC and ~05:00 UTC.
+        ET = ZoneInfo("America/New_York")
+        today = datetime.now(ET).date()
 
         forecast = self.postprocess(prediction)
 
-        # Trading timestamps
+        # Trading timestamps (naive ET, matching yfinance convention)
         timestamps = pd.date_range(
             start=f"{today} 09:30:00",
             periods=self.forecast_steps,

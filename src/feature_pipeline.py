@@ -1,4 +1,5 @@
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import pandas as pd
@@ -37,7 +38,8 @@ class FeaturePipeline:
         for rolling-window indicators (RSI, CCI) to be valid.
         """
         try:
-            yesterday = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
+            ET = ZoneInfo("America/New_York")
+            yesterday = (datetime.now(ET).date() - timedelta(days=1)).isoformat()
             logger.info(f"Fetching data for {yesterday}")
 
             data = fetch_historical_data(period="30d", interval="1h")
@@ -116,32 +118,46 @@ class FeaturePipeline:
         self.session.commit()
         self.session.close()
 
-        # Adding actual values to the predicions  vs actual dataframe
+        # Adding actual values to the predictions vs actual dataframe
         prediction_path = Path("artifacts/predictions.csv")
 
         if prediction_path.exists():
             predictions = pd.read_csv(prediction_path)
             predictions["datetime"] = pd.to_datetime(predictions["datetime"])
 
-            actual = data[["datetime", "close"]].rename({"close": "actual"})
+            # Use today's actual data (same date the forecast targets).
+            # Both yfinance data and forecast timestamps are in naive ET,
+            # so derive today's date in ET to avoid UTC/ET date boundary issues.
+            ET = ZoneInfo("America/New_York")
+            today = datetime.now(ET).date()
+            today_data = full_history.loc[
+                full_history["datetime"].dt.date == today
+            ].reset_index(drop=True)
 
-            prediction_vs_actual = predictions.merge(
-                actual,
-                on="datetime",
-                how="inner",
-            )
+            if today_data.empty:
+                logger.warning(
+                    "No actual data found for %s. Skipping evaluation file.", today
+                )
+            else:
+                actual = today_data[["datetime", "close"]].rename(
+                    columns={"close": "actual"}
+                )
+                actual["datetime"] = pd.to_datetime(actual["datetime"]).dt.tz_localize(
+                    None
+                )
+                predictions["datetime"] = predictions["datetime"].dt.tz_localize(None)
 
-            prediction_vs_actual.to_csv(
-                "artifacts/predicted_vs_actual.csv",
-                index=False,
-            )
+                prediction_vs_actual = predictions.merge(actual, on="datetime", how="inner")
 
-            logger.info(
-                "Saved %d prediction/actual pairs.",
-                len(prediction_vs_actual),
-            )
-        else:
-            logger.warning("predictions.csv not found. Skipping evaluation file.")
+                prediction_vs_actual.to_csv(
+                    "artifacts/predicted_vs_actual.csv",
+                    index=False,
+                )
+
+                logger.info(
+                    "Saved %d prediction/actual pairs.",
+                    len(prediction_vs_actual),
+                )
 
         logger.info("Feature pipeline run completed successfully")
 

@@ -202,6 +202,20 @@
 
       .notice.error { color: var(--red); }
 
+      /* ── Disclaimer ──────────────────────────────────────────────── */
+      .disclaimer {
+        background: rgba(210,153,34,.08);
+        border: 1px solid rgba(210,153,34,.3);
+        border-radius: var(--radius);
+        color: #d29922;
+        font-size: .82rem;
+        line-height: 1.6;
+        padding: 14px 20px;
+        text-align: center;
+      }
+
+      .disclaimer strong { color: #e3aa2a; }
+
       /* ── Footer ───────────────────────────────────────────────────── */
       footer {
         text-align: center;
@@ -249,7 +263,7 @@
       <div class="panel">
         <div class="panel-header">
           <h2>7-Hour Price Forecast</h2>
-          <span class="hint">next trading session</span>
+          <span class="hint">next trading session · times in ET (America/New_York)</span>
         </div>
         <div class="chart-wrap">
           <canvas id="forecast-chart"></canvas>
@@ -260,7 +274,7 @@
       <div class="panel">
         <div class="panel-header">
           <h2>Predicted vs Actual</h2>
-          <span class="hint">historical accuracy</span>
+          <span class="hint">historical accuracy · times in ET (America/New_York)</span>
         </div>
         <div class="chart-wrap" id="pva-wrap">
           <canvas id="pva-chart"></canvas>
@@ -280,8 +294,12 @@
 
     </main>
 
+    <div class="disclaimer">
+      ⚠️ <strong>Educational purposes only.</strong> This project is a machine learning experiment and does <strong>not</strong> constitute financial advice. Predictions are not reliable indicators of future stock performance. Do not make investment decisions based on this data.
+    </div>
+
     <footer>
-      Data refreshed automatically by GitHub Actions · LSTM · AMZN hourly
+      Data refreshed automatically by GitHub Actions · LSTM · AMZN hourly · All times <abbr title="America/New_York — Eastern Time. yfinance returns US equity data in ET; timezone info is stripped, leaving naive ET wall-clock timestamps throughout the pipeline.">ET (America/New_York)</abbr>
     </footer>
 
     <script>
@@ -339,7 +357,7 @@
     /* ── Forecast chart ──────────────────────────────────────────────── */
     async function loadForecast() {
       try {
-        const res = await fetch("../artifacts/predictions.csv");
+        const res = await fetch("data/predictions.csv");
         if (!res.ok) throw new Error("predictions.csv not found");
         const rows = parseCsv(await res.text());
 
@@ -401,7 +419,7 @@
     async function loadPvA() {
       const wrap = document.getElementById("pva-wrap");
       try {
-        const res = await fetch("../artifacts/predicted_vs_actual.csv");
+        const res = await fetch("data/predicted_vs_actual.csv");
         if (!res.ok) throw new Error("predicted_vs_actual.csv not found");
         const rows = parseCsv(await res.text());
 
@@ -448,7 +466,7 @@
     async function loadRegistry() {
       const container = document.getElementById("registry-container");
       try {
-        const res = await fetch("../src/models/registry.json");
+        const res = await fetch("data/registry.json");
         if (!res.ok) throw new Error("registry.json not found");
         const registry = await res.json();
 

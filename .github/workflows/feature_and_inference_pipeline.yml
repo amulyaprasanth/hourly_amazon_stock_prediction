@@ -37,7 +37,13 @@ jobs:
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
 
-          git add features.db artifacts/
+          # copy data files into docs/ so GitHub Pages can serve them
+          mkdir -p docs/data
+          cp artifacts/predictions.csv docs/data/predictions.csv || true
+          cp artifacts/predicted_vs_actual.csv docs/data/predicted_vs_actual.csv || true
+          cp src/models/registry.json docs/data/registry.json
+
+          git add features.db artifacts/ docs/data/
 
           git diff --cached --quiet || \
             git commit -m "Update feature store and predictions [skip ci]"
