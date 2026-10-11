@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AMZN Hourly Stock Forecast</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+      /* ── Reset & tokens ───────────────────────────────────────────── */
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        --bg:        #0d1117;
+        --surface:   #161b22;
+        --border:    #30363d;
+        --text:      #e6edf3;
+        --muted:     #8b949e;
+        --accent:    #58a6ff;
+        --green:     #3fb950;
+        --red:       #f85149;
+        --yellow:    #d29922;
+        --radius:    10px;
+        --shadow:    0 4px 24px rgba(0,0,0,.45);
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+      }
+
+      /* ── Layout ───────────────────────────────────────────────────── */
+      header {
+        border-bottom: 1px solid var(--border);
+        padding: 18px 32px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      header .logo {
+        font-size: 1.25rem;
+        font-weight: 700;
+        letter-spacing: -.3px;
+        color: var(--text);
+      }
+
+      header .logo span { color: var(--accent); }
+
+      header .badge {
+        margin-left: auto;
+        font-size: .75rem;
+        background: rgba(88,166,255,.12);
+        color: var(--accent);
+        border: 1px solid rgba(88,166,255,.3);
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-weight: 600;
+      }
+
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px 24px 64px;
+        display: grid;
+        gap: 24px;
+      }
+
+      /* ── Stat cards ───────────────────────────────────────────────── */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px 24px;
+        box-shadow: var(--shadow);
+      }
+
+      .card .label {
+        font-size: .72rem;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+
+      .card .value {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1;
+      }
+
+      .card .sub {
+        font-size: .8rem;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+
+      .card .value.green { color: var(--green); }
+      .card .value.red   { color: var(--red);   }
+
+      /* ── Chart panels ─────────────────────────────────────────────── */
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 24px;
+        box-shadow: var(--shadow);
+      }
+
+      .panel-header {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .panel-header h2 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .panel-header .hint {
+        font-size: .78rem;
+        color: var(--muted);
+      }
+
+      .chart-wrap {
+        position: relative;
+        width: 100%;
+        height: 300px;
+      }
+
+      /* ── Model registry table ─────────────────────────────────────── */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: .875rem;
+      }
+
+      thead th {
+        text-align: left;
+        padding: 10px 14px;
+        font-size: .72rem;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: var(--muted);
+        border-bottom: 1px solid var(--border);
+      }
+
+      tbody tr { border-bottom: 1px solid var(--border); }
+      tbody tr:last-child { border-bottom: none; }
+
+      tbody td {
+        padding: 12px 14px;
+        color: var(--text);
+      }
+
+      .rank-badge {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        line-height: 24px;
+        text-align: center;
+        border-radius: 50%;
+        font-size: .75rem;
+        font-weight: 700;
+      }
+
+      .rank-1 { background: rgba(215,175,55,.2);  color: #d7af37; }
+      .rank-2 { background: rgba(174,174,174,.2); color: #aeaeae; }
+      .rank-3 { background: rgba(180,115,77,.2);  color: #b4734d; }
+
+      .champion-tag {
+        display: inline-block;
+        font-size: .7rem;
+        background: rgba(63,185,80,.15);
+        color: var(--green);
+        border: 1px solid rgba(63,185,80,.3);
+        padding: 2px 8px;
+        border-radius: 20px;
+        margin-left: 8px;
+        font-weight: 600;
+      }
+
+      /* ── Error / loading states ───────────────────────────────────── */
+      .notice {
+        text-align: center;
+        color: var(--muted);
+        font-size: .9rem;
+        padding: 48px 0;
+      }
+
+      .notice.error { color: var(--red); }
+
+      /* ── Footer ───────────────────────────────────────────────────── */
+      footer {
+        text-align: center;
+        padding: 20px;
+        font-size: .78rem;
+        color: var(--muted);
+        border-top: 1px solid var(--border);
+      }
+    </style>
+  </head>
+  <body>
+
+    <header>
+      <div class="logo"><span>AMZN</span> Hourly Forecast</div>
+      <span class="badge" id="last-updated">Loading…</span>
+    </header>
+
+    <main>
+
+      <!-- Stat cards -->
+      <div class="stats">
+        <div class="card">
+          <div class="label">Next Hour Forecast</div>
+          <div class="value" id="stat-next">—</div>
+          <div class="sub">USD close price</div>
+        </div>
+        <div class="card">
+          <div class="label">7-Hour Range</div>
+          <div class="value" id="stat-range">—</div>
+          <div class="sub">min → max predicted</div>
+        </div>
+        <div class="card">
+          <div class="label">Forecast Trend</div>
+          <div class="value" id="stat-trend">—</div>
+          <div class="sub">first → last predicted</div>
+        </div>
+        <div class="card">
+          <div class="label">Champion Model RMSE</div>
+          <div class="value" id="stat-rmse">—</div>
+          <div class="sub">scaled units</div>
+        </div>
+      </div>
+
+      <!-- Forecast chart -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>7-Hour Price Forecast</h2>
+          <span class="hint">next trading session</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="forecast-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Predicted vs Actual chart -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Predicted vs Actual</h2>
+          <span class="hint">historical accuracy</span>
+        </div>
+        <div class="chart-wrap" id="pva-wrap">
+          <canvas id="pva-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Model registry -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Model Registry</h2>
+          <span class="hint">top 3 by RMSE</span>
+        </div>
+        <div id="registry-container">
+          <div class="notice">Loading registry…</div>
+        </div>
+      </div>
+
+    </main>
+
+    <footer>
+      Data refreshed automatically by GitHub Actions · LSTM · AMZN hourly
+    </footer>
+
+    <script>
+    /* ── Helpers ─────────────────────────────────────────────────────── */
+
+    const CHART_DEFAULTS = {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: {
+          labels: { color: "#8b949e", font: { size: 12 }, boxWidth: 12 }
+        },
+        tooltip: {
+          backgroundColor: "#161b22",
+          borderColor: "#30363d",
+          borderWidth: 1,
+          titleColor: "#e6edf3",
+          bodyColor: "#8b949e",
+          padding: 10,
+        }
+      },
+      scales: {
+        x: {
+          type: "time",
+          time: { tooltipFormat: "MMM d, HH:mm" },
+          ticks: { color: "#8b949e", maxTicksLimit: 7 },
+          grid: { color: "rgba(48,54,61,.6)" }
+        },
+        y: {
+          ticks: { color: "#8b949e", callback: v => "$" + v.toFixed(2) },
+          grid: { color: "rgba(48,54,61,.6)" }
+        }
+      }
+    };
+
+    function parseCsv(text) {
+      const lines = text.trim().split("\n");
+      const headers = lines[0].split(",").map(h => h.trim());
+      return lines.slice(1).map(line => {
+        const vals = line.split(",");
+        return Object.fromEntries(headers.map((h, i) => [h, vals[i]?.trim()]));
+      });
+    }
+
+    function fmtUSD(n) {
+      return "$" + Number(n).toFixed(2);
+    }
+
+    function pct(a, b) {
+      const d = ((b - a) / Math.abs(a)) * 100;
+      return (d >= 0 ? "▲ +" : "▼ ") + Math.abs(d).toFixed(2) + "%";
+    }
+
+    /* ── Forecast chart ──────────────────────────────────────────────── */
+    async function loadForecast() {
+      try {
+        const res = await fetch("../artifacts/predictions.csv");
+        if (!res.ok) throw new Error("predictions.csv not found");
+        const rows = parseCsv(await res.text());
+
+        const labels = rows.map(r => new Date(r.datetime));
+        const values = rows.map(r => parseFloat(r.prediction));
+
+        // stat cards
+        document.getElementById("stat-next").textContent = fmtUSD(values[0]);
+
+        const mn = Math.min(...values), mx = Math.max(...values);
+        document.getElementById("stat-range").textContent =
+          fmtUSD(mn) + " – " + fmtUSD(mx);
+
+        const trendEl = document.getElementById("stat-trend");
+        const trendTxt = pct(values[0], values[values.length - 1]);
+        const rising = values[values.length - 1] >= values[0];
+        trendEl.textContent = trendTxt;
+        trendEl.className = "value " + (rising ? "green" : "red");
+
+        // updated badge
+        document.getElementById("last-updated").textContent =
+          "Updated " + new Date().toLocaleDateString("en-US", {
+            month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+          });
+
+        // chart
+        const ctx = document.getElementById("forecast-chart").getContext("2d");
+        new Chart(ctx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [{
+              label: "Predicted Close",
+              data: values,
+              borderColor: "#58a6ff",
+              backgroundColor: "rgba(88,166,255,.08)",
+              borderWidth: 2.5,
+              pointRadius: 4,
+              pointBackgroundColor: "#58a6ff",
+              fill: true,
+              tension: 0.3,
+            }]
+          },
+          options: {
+            ...CHART_DEFAULTS,
+            plugins: {
+              ...CHART_DEFAULTS.plugins,
+              legend: { display: false }
+            }
+          }
+        });
+      } catch (e) {
+        document.getElementById("forecast-chart").closest(".panel").innerHTML =
+          `<div class="notice error">⚠ ${e.message}</div>`;
+      }
+    }
+
+    /* ── Predicted vs Actual chart ───────────────────────────────────── */
+    async function loadPvA() {
+      const wrap = document.getElementById("pva-wrap");
+      try {
+        const res = await fetch("../artifacts/predicted_vs_actual.csv");
+        if (!res.ok) throw new Error("predicted_vs_actual.csv not found");
+        const rows = parseCsv(await res.text());
+
+        if (!rows.length) throw new Error("No prediction/actual data yet");
+
+        const labels    = rows.map(r => new Date(r.datetime));
+        const predicted = rows.map(r => parseFloat(r.prediction));
+        const actual    = rows.map(r => parseFloat(r.actual));
+
+        const ctx = document.getElementById("pva-chart").getContext("2d");
+        new Chart(ctx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Predicted",
+                data: predicted,
+                borderColor: "#58a6ff",
+                backgroundColor: "transparent",
+                borderWidth: 2,
+                pointRadius: 3,
+                tension: 0.3,
+              },
+              {
+                label: "Actual",
+                data: actual,
+                borderColor: "#3fb950",
+                backgroundColor: "transparent",
+                borderWidth: 2,
+                pointRadius: 3,
+                tension: 0.3,
+              }
+            ]
+          },
+          options: CHART_DEFAULTS
+        });
+      } catch (e) {
+        wrap.innerHTML = `<div class="notice">${e.message}</div>`;
+      }
+    }
+
+    /* ── Model registry table ────────────────────────────────────────── */
+    async function loadRegistry() {
+      const container = document.getElementById("registry-container");
+      try {
+        const res = await fetch("../src/models/registry.json");
+        if (!res.ok) throw new Error("registry.json not found");
+        const registry = await res.json();
+
+        if (!registry.length) {
+          container.innerHTML = '<div class="notice">No models registered yet.</div>';
+          return;
+        }
+
+        // stat card — champion RMSE
+        document.getElementById("stat-rmse").textContent =
+          registry[0].rmse.toFixed(4);
+
+        const ranks = ["rank-1", "rank-2", "rank-3"];
+        const medals = ["1", "2", "3"];
+
+        const rows = registry.map((m, i) => {
+          const ver = m.version;
+          // parse version string "YYYYMMDD_HHMM"
+          const dateStr = ver.slice(0, 4) + "-" + ver.slice(4, 6) + "-" +
+                          ver.slice(6, 8) + " " + ver.slice(9, 11) + ":" + ver.slice(11);
+          const champion = i === 0
+            ? '<span class="champion-tag">champion</span>' : "";
+          return `
+            <tr>
+              <td><span class="rank-badge ${ranks[i]}">${medals[i]}</span></td>
+              <td><code>${ver}</code>${champion}</td>
+              <td>${new Date(dateStr).toLocaleDateString("en-US",
+                    { year:"numeric", month:"short", day:"numeric",
+                      hour:"2-digit", minute:"2-digit" })}</td>
+              <td>${m.rmse.toFixed(6)}</td>
+            </tr>`;
+        }).join("");
+
+        container.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Version</th>
+                <th>Trained at</th>
+                <th>RMSE</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>`;
+      } catch (e) {
+        container.innerHTML = `<div class="notice error">⚠ ${e.message}</div>`;
+      }
+    }
+
+    /* ── Boot ────────────────────────────────────────────────────────── */
+    Promise.all([loadForecast(), loadPvA(), loadRegistry()]);
+    </script>
+
+  </body>
+</html>

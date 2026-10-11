@@ -1,4 +1,6 @@
 name: Run Feature and Inference Pipeline Daily
+permissions:
+  contents: write
 
 on:
   schedule:
@@ -30,14 +32,14 @@ jobs:
       - name: Run Inference Pipeline
         run: uv run python -m src.inference_pipeline
 
-      - name: Commit updated feature store
+      - name: Commit updated database
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
 
-          git add amzn_stock_repo/data/
+          git add features.db artifacts/
 
           git diff --cached --quiet || \
-            git commit -m "Update feature store"
+            git commit -m "Update feature store and predictions [skip ci]"
 
           git push
