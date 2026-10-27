@@ -113,7 +113,7 @@ class FeaturePipeline:
                 rsi=row["rsi"],
                 cci=row["cci"],
             )
-            self.session.add(user_record)
+            # self.session.add(user_record)
 
         self.session.commit()
         self.session.close()
@@ -128,14 +128,15 @@ class FeaturePipeline:
             # use the date from predictions to avoid empty today_data
             # Both yfinance data and forecast timestamps are in naive ET,
             # so derive today's date in ET to avoid UTC/ET date boundary issues.
-            day = predictions["datetime"].iloc[0].date()
+            ET = ZoneInfo("America/New_York")
+            yesterday = datetime.now(ET).date() - timedelta(days=1)
             today_data = full_history.loc[
-                full_history["datetime"].dt.date == day
+                full_history["datetime"].dt.date == yesterday
             ].reset_index(drop=True)
 
             if today_data.empty:
                 logger.warning(
-                    "No actual data found for %s. Skipping evaluation file.", day
+                    "No actual data found for %s. Skipping evaluation file.", yesterday
                 )
             else:
                 actual = today_data[["datetime", "close"]].rename(
