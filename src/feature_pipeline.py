@@ -125,18 +125,17 @@ class FeaturePipeline:
             predictions = pd.read_csv(prediction_path)
             predictions["datetime"] = pd.to_datetime(predictions["datetime"])
 
-            # Use today's actual data (same date the forecast targets).
+            # use the date from predictions to avoid empty today_data
             # Both yfinance data and forecast timestamps are in naive ET,
             # so derive today's date in ET to avoid UTC/ET date boundary issues.
-            ET = ZoneInfo("America/New_York")
-            today = datetime.now(ET).date()
+            day = predictions["datetime"].iloc[0].date()
             today_data = full_history.loc[
-                full_history["datetime"].dt.date == today
+                full_history["datetime"].dt.date == day
             ].reset_index(drop=True)
 
             if today_data.empty:
                 logger.warning(
-                    "No actual data found for %s. Skipping evaluation file.", today
+                    "No actual data found for %s. Skipping evaluation file.", day
                 )
             else:
                 actual = today_data[["datetime", "close"]].rename(
@@ -147,7 +146,9 @@ class FeaturePipeline:
                 )
                 predictions["datetime"] = predictions["datetime"].dt.tz_localize(None)
 
-                prediction_vs_actual = predictions.merge(actual, on="datetime", how="inner")
+                prediction_vs_actual = predictions.merge(
+                    actual, on="datetime", how="inner"
+                )
 
                 prediction_vs_actual.to_csv(
                     "artifacts/predicted_vs_actual.csv",
